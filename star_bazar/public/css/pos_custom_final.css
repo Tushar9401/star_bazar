@@ -1,0 +1,173 @@
+/* =========================
+   POS THEME (LIGHT + PREMIUM)
+   Scope: only POS route
+   ========================= */
+
+body[data-route="point-of-sale"] #page-point-of-sale {
+  background: linear-gradient(180deg, #f6f9ff 0%, #eef3ff 100%) !important;
+  min-height: 100vh !important;
+  padding: 18px 0 30px 0 !important;
+
+  /* Shared theme tokens */
+  --pos-panel-grad: linear-gradient(
+    90deg,
+    rgba(168, 85, 247, 0.18) 0%,
+    rgba(59, 130, 246, 0.18) 100%
+  );
+  --pos-inner-white: rgba(255, 255, 255, 0.60);
+}
+
+/* wrappers transparent */
+body[data-route="point-of-sale"] #page-point-of-sale .page-body,
+body[data-route="point-of-sale"] #page-point-of-sale .layout-main-section,
+body[data-route="point-of-sale"] #page-point-of-sale .layout-main-section-wrapper,
+body[data-route="point-of-sale"] #page-point-of-sale .page-content,
+body[data-route="point-of-sale"] #page-point-of-sale .container {
+  background: transparent !important;
+}
+
+/* =========================
+   Big POS container (main board)
+   ========================= */
+body[data-route="point-of-sale"] #page-point-of-sale .point-of-sale-app {
+  background: rgba(255, 255, 255, 0.75) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 14px 34px rgba(2, 6, 23, 0.10) !important;
+  padding: 16px !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+body[data-route="point-of-sale"] #page-point-of-sale .point-of-sale-app > * {
+  position: relative !important;
+}
+
+/* =========================
+   ITEMS SECTION
+   ========================= */
+
+/* Outer Items panel = gradient */
+body[data-route="point-of-sale"] #page-point-of-sale .items-selector {
+  background: var(--pos-panel-grad) !important;
+  border: 1px solid rgba(15, 23, 42, 0.06) !important;
+  border-radius: 16px !important;
+  padding: 14px !important;
+}
+
+/* ✅ FILTER SECTION = solid white (like customer search) */
+body[data-route="point-of-sale"] #page-point-of-sale .items-selector .filter-section {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-radius: 14px !important;
+  padding: 12px !important;
+  border: 1px solid rgba(15, 23, 42, 0.10) !important;
+  box-shadow: 0 6px 14px rgba(2, 6, 23, 0.06) !important;
+}
+
+/* Items container can stay soft/gradient-ish */
+body[data-route="point-of-sale"] #page-point-of-sale .items-selector .items-container {
+  background: var(--pos-inner-white) !important;
+  border-radius: 14px !important;
+  padding: 12px !important;
+}
+
+/* Items list background */
+body[data-route="point-of-sale"] #page-point-of-sale .items-selector .items {
+  background: var(--pos-inner-white) !important;
+  border-radius: 12px !important;
+  padding: 10px !important;
+}
+
+/* =========================
+   CART SECTION
+   ========================= */
+body[data-route="point-of-sale"] #page-point-of-sale .cart-container,
+body[data-route="point-of-sale"] #page-point-of-sale .pos-cart,
+body[data-route="point-of-sale"] #page-point-of-sale .cart {
+  background: var(--pos-panel-grad) !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 10px 26px rgba(2, 6, 23, 0.10) !important;
+}
+
+body[data-route="point-of-sale"] #page-point-of-sale .cart-container .abs-cart-container,
+body[data-route="point-of-sale"] #page-point-of-sale .cart-container .cart-items-section {
+  background: var(--pos-inner-white) !important;
+  border-radius: 14px !important;
+}
+
+/* =========================
+   Headings
+   ========================= */
+body[data-route="point-of-sale"] #page-point-of-sale h4,
+body[data-route="point-of-sale"] #page-point-of-sale .section-title,
+body[data-route="point-of-sale"] #page-point-of-sale .items-selector .title-text {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+
+/* =========================
+   Item cards
+   ========================= */
+body[data-route="point-of-sale"] #page-point-of-sale .item-wrapper,
+body[data-route="point-of-sale"] #page-point-of-sale .pos-item {
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 10px 22px rgba(2, 6, 23, 0.10) !important;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease !important;
+}
+
+body[data-route="point-of-sale"] #page-point-of-sale .item-wrapper:hover,
+body[data-route="point-of-sale"] #page-point-of-sale .pos-item:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 16px 32px rgba(2, 6, 23, 0.14) !important;
+  border-color: rgba(59, 130, 246, 0.32) !important;
+}
+
+/* =========================
+   Inputs
+   ========================= */
+body[data-route="point-of-sale"] #page-point-of-sale input,
+body[data-route="point-of-sale"] #page-point-of-sale .control-input,
+body[data-route="point-of-sale"] #page-point-of-sale .form-control {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 6px 14px rgba(2, 6, 23, 0.06) !important;
+}
+
+body[data-route="point-of-sale"] #page-point-of-sale input:focus,
+body[data-route="point-of-sale"] #page-point-of-sale .form-control:focus {
+  border-color: rgba(168, 85, 247, 0.55) !important;
+  box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.16) !important;
+}
+
+/* =========================
+   Badge / stock pill
+   ========================= */
+body[data-route="point-of-sale"] #page-point-of-sale .indicator-pill,
+body[data-route="point-of-sale"] #page-point-of-sale .badge {
+  border-radius: 999px !important;
+}
+
+/* =========================
+   Checkout button
+   ========================= */
+body[data-route="point-of-sale"] #page-point-of-sale .btn-primary,
+body[data-route="point-of-sale"] #page-point-of-sale .checkout-btn,
+body[data-route="point-of-sale"] #page-point-of-sale .pos-checkout-btn {
+  background: linear-gradient(135deg, #ff512f, #dd2476) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 14px !important;
+  font-weight: 800 !important;
+  box-shadow: 0 14px 28px rgba(221, 36, 118, 0.26) !important;
+}
+
+body[data-route="point-of-sale"] #page-point-of-sale .btn-primary:hover,
+body[data-route="point-of-sale"] #page-point-of-sale .checkout-btn:hover,
+body[data-route="point-of-sale"] #page-point-of-sale .pos-checkout-btn:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 18px 34px rgba(221, 36, 118, 0.32) !important;
+}
