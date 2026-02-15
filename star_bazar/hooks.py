@@ -6,6 +6,7 @@ app_email = "tusharthakkar1996@gmail.com"
 app_license = "mit"
 app_include_css = "/assets/star_bazar/css/pos_custom_final.css"
 
+
 # Apps
 # ------------------
 
@@ -27,7 +28,7 @@ app_include_css = "/assets/star_bazar/css/pos_custom_final.css"
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/star_bazar/css/star_bazar.css"
-# app_include_js = "/assets/star_bazar/js/star_bazar.js"
+# app_include_js = "/assets/star_bazar/js/point_of_sale.js"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/star_bazar/css/star_bazar.css"
@@ -42,6 +43,10 @@ app_include_css = "/assets/star_bazar/css/pos_custom_final.css"
 
 # include js in page
 # page_js = {"page" : "public/js/file.js"}
+
+page_js = {
+    "point-of-sale": "public/js/pos_extension.js"
+}
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
