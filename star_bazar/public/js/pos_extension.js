@@ -145,8 +145,6 @@ $(document).on('page-change', function () {
                     });
 
                 }
-
-
                     // ======================
                     // IF EBT REMOVED
                     // ======================
@@ -172,5 +170,85 @@ $(document).on('page-change', function () {
             }
 
         }, 500);
+    }
+});
+
+// ===============================
+// RECEIPT BARCODE SCAN HANDLER
+// ===============================
+
+// let receipt_scan_buffer = "";
+
+// $(document).on("keypress", function (e) {
+
+//     if (e.key === "Enter") {
+
+//         let scanned_value = receipt_scan_buffer.trim();
+//         receipt_scan_buffer = "";
+
+//         if (scanned_value.startsWith("INV:")) {
+
+//             let short_id = scanned_value.replace("INV:", "");
+
+//             frappe.db.get_list("POS Invoice", {
+//                 filters: {
+//                     name: ["like", "%" + short_id]
+//                 },
+//                 fields: ["name"],
+//                 limit: 1
+//             }).then(r => {
+
+//                 if (r.length) {
+//                     frappe.set_route("Form", "POS Invoice", r[0].name);
+//                 } else {
+//                     frappe.msgprint("Invoice not found: " + short_id);
+//                 }
+
+//             });
+//         }
+
+//     } else {
+//         receipt_scan_buffer += e.key;
+//     }
+// });
+
+// ===============================
+// POS RECEIPT SCAN (LOAD INSIDE POS)
+// ===============================
+
+// ===============================
+// POS RECEIPT SCAN → LOAD IN POS
+// ===============================
+
+// ===============================
+// RECEIPT QR / BARCODE HANDLER
+// ===============================
+
+let receipt_scan_buffer = "";
+
+$(document).on("keypress", function (e) {
+
+    if (e.key === "Enter") {
+
+        let scanned_value = receipt_scan_buffer.trim();
+        receipt_scan_buffer = "";
+
+        if (scanned_value.startsWith("INV:")) {
+
+            let invoice_id = scanned_value.replace("INV:", "");
+
+            frappe.db.exists("POS Invoice", invoice_id).then(exists => {
+
+                if (exists) {
+                    frappe.set_route("Form", "POS Invoice", invoice_id);
+                } else {
+                    frappe.msgprint("Invoice not found: " + invoice_id);
+                }
+
+            });
+        }
+
+    } else {
+        receipt_scan_buffer += e.key;
     }
 });
