@@ -1,3 +1,4 @@
+frappe.require("/assets/star_bazar/js/qz-tray.js");
 $(document).on('page-change', function() {
     if (frappe.get_route()[0] === 'point-of-sale') {
         
@@ -212,43 +213,78 @@ $(document).on('page-change', function () {
 //     }
 // });
 
-// ===============================
-// POS RECEIPT SCAN (LOAD INSIDE POS)
-// ===============================
-
-// ===============================
-// POS RECEIPT SCAN → LOAD IN POS
-// ===============================
 
 // ===============================
 // RECEIPT QR / BARCODE HANDLER
 // ===============================
 
-let receipt_scan_buffer = "";
+$(document).on("input", ".search-field input", function () {
 
-$(document).on("keypress", function (e) {
+    let value = $(this).val().trim();
 
-    if (e.key === "Enter") {
+    if (value.startsWith("INV:")) {
 
-        let scanned_value = receipt_scan_buffer.trim();
-        receipt_scan_buffer = "";
+        let invoice_id = value.replace("INV:", "");
 
-        if (scanned_value.startsWith("INV:")) {
+        // clear search box immediately
+        $(this).val("");
 
-            let invoice_id = scanned_value.replace("INV:", "");
+        frappe.db.exists("POS Invoice", invoice_id).then(exists => {
 
-            frappe.db.exists("POS Invoice", invoice_id).then(exists => {
+            if (exists) {
+                frappe.set_route("Form", "POS Invoice", invoice_id);
+            } else {
+                frappe.msgprint("Invoice not found: " + invoice_id);
+            }
 
-                if (exists) {
-                    frappe.set_route("Form", "POS Invoice", invoice_id);
-                } else {
-                    frappe.msgprint("Invoice not found: " + invoice_id);
-                }
-
-            });
-        }
-
-    } else {
-        receipt_scan_buffer += e.key;
+        });
     }
 });
+
+// ===============================
+// MERGE SAME ITEM IN ITEM LIST
+// ===============================
+
+function merge_duplicate_items_v15() {
+
+    if (!window.cur_pos || !window.cur_pos.frm) return;
+
+    let frm = window.cur_pos.frm;
+    let items = frm.doc.items || [];
+
+    let item_map = {};
+    let new_items = [];
+
+    items.forEach(row => {
+
+        if (item_map[row.item_code]) {
+
+            item_map[row.item_code].qty += row.qty;
+
+        } else {
+
+            item_map[row.item_code] = row;
+            new_items.push(row);
+        }
+    });
+
+    frm.doc.items = new_items;
+
+    frm.refresh_field("items");
+
+}
+
+
+// Trigger merge AFTER every item add
+$(document).on("click", ".item-wrapper", function () {
+    setTimeout(() => {
+        merge_duplicate_items_v15();
+    }, 100);
+});
+
+
+
+
+
+
+
