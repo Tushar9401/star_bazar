@@ -229,14 +229,27 @@ $(document).on("input", ".search-field input", function () {
         // clear search box immediately
         $(this).val("");
 
-        frappe.db.exists("POS Invoice", invoice_id).then(exists => {
+        // frappe.db.exists("POS Invoice", invoice_id).then(exists => {
 
-            if (exists) {
-                frappe.set_route("Form", "POS Invoice", invoice_id);
-            } else {
-                frappe.msgprint("Invoice not found: " + invoice_id);
+        //     if (exists) {
+        //         frappe.set_route("Form", "POS Invoice", invoice_id);
+        //     } else {
+        //         frappe.msgprint("Invoice not found: " + invoice_id);
+        //     }
+
+        // });
+        frappe.db.get_list("POS Invoice", {
+            filters: {
+                name: ["like", "%" + invoice_id]
+            },
+            fields: ["name"],
+            limit: 1
+        }).then(r => {
+            if (r.length) {
+                frappe.set_route("Form", "POS Invoice", r[0].name);
             }
-
+            else { frappe.msgprint("Invoice not found: ");
+            }
         });
     }
 });
@@ -274,12 +287,30 @@ function merge_duplicate_items_v15() {
 
 }
 
-
 // Trigger merge AFTER every item add
 $(document).on("click", ".item-wrapper", function () {
     setTimeout(() => {
         merge_duplicate_items_v15();
     }, 100);
+});
+
+
+$(document).on('page-change', function () {
+    if (frappe.get_route()[0] === 'point-of-sale') {
+
+        const observer = new MutationObserver(() => {
+            const el = document.querySelector('.add-discount-wrapper');
+            if (el) {
+                el.remove();
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+    }
 });
 
 
