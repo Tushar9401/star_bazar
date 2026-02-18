@@ -1,0 +1,35 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "POS Settings",
+  "invoice_fields": [
+   {
+    "default_value": "Grand Total",
+    "fieldname": "apply_discount_on",
+    "fieldtype": "Select",
+    "label": "Apply Additional Discount On",
+    "options": "\nGrand Total\nNet Total",
+    "parent": "POS Settings",
+    "parentfield": "invoice_fields",
+    "parenttype": "POS Settings",
+    "read_only": 0,
+    "reqd": 0
+   },
+   {
+    "default_value": null,
+    "fieldname": "additional_discount_percentage",
+    "fieldtype": "Float",
+    "label": "Additional Discount Percentage",
+    "options": null,
+    "parent": "POS Settings",
+    "parentfield": "invoice_fields",
+    "parenttype": "POS Settings",
+    "read_only": 0,
+    "reqd": 0
+   }
+  ],
+  "modified": "2026-02-18 08:53:19.611106",
+  "name": "POS Settings",
+  "pos_search_fields": []
+ }
+]
