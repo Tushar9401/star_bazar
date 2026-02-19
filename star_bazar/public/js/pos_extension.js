@@ -46,6 +46,18 @@ $(document).on('page-change', function() {
                     });
                 }
 
+                if ($('#btn-hold-invoice').length === 0) {
+                    $header_actions.prepend(`
+                        <button id="btn-hold-invoice" class="btn btn-default btn-sm ml-2">
+                            ${__('Hold Invoice')}
+                        </button>
+                    `);
+
+                    $('#btn-hold-invoice').on('click', function() {
+                        frappe.set_route('List', 'Hold Invoice');
+                    });
+                }
+
                 console.log("POS Invoice buttons initialized.");
             }
             
