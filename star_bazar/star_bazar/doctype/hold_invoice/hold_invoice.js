@@ -287,11 +287,77 @@ frappe.ui.form.on("Hold Invoice Payment Type", {
 
 	// If mode_of_payment changes we may want to recalc as well (in case UI logic modifies amount)
 	mode_of_payment: function(frm, cdt, cdn) {
+
+       let row = locals[cdt][cdn];
+
+        // ✅ INIT cache once
+        if (!frm._original_tax_template) {
+            frm._original_tax_template = frm.doc.sales_tax_charges_and_template;
+        }
+
+        // ---------------------------------------------------
+        // ✅ IF EBT → REMOVE TAXES
+        // ---------------------------------------------------
+
+        if (row.mode_of_payment === "EBT") {
+
+
+            frm.set_value("sales_tax_charges_and_template", null);
+
+            frm.clear_table("sales_taxes_and_charges");
+            frm.refresh_field("sales_taxes_and_charges");
+
+            frappe.show_alert({
+                message: __("EBT Payment → Taxes Removed"),
+                indicator: "orange"
+            });
+
+            calculate_totals(frm);
+        }
+
+        // ---------------------------------------------------
+        // ✅ IF NOT EBT → RESTORE TAXES
+        // ---------------------------------------------------
+
+        else {
+            if (!frm.doc.sales_tax_charges_and_template) {
+
+            frappe.call({
+                method: "frappe.client.get_list",
+                args: {
+                    doctype: "Sales Taxes and Charges Template",
+                    filters: { is_default: 1 },
+                    fields: ["name"],
+                    limit: 1
+                },
+
+                callback: function(r) {
+
+                    if (r.message && r.message.length) {
+
+                        frm.set_value(
+                            "sales_tax_charges_and_template",
+                            r.message[0].name
+                        );
+
+                        calculate_totals(frm);
+                    }
+                }
+            });
+        }
+
+            
+        }
 		recalc_amount_paid(frm);
 	}
 });
 
+function has_ebt(frm) {
 
+    return (frm.doc.payments || []).some(row =>
+        row.mode_of_payment === "EBT"
+    );
+}
 function recalc_amount_paid(frm) {
 	let total = 0.0;
 
