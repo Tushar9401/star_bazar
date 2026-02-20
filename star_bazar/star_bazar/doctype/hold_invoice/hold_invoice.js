@@ -28,6 +28,20 @@ frappe.ui.form.on("Hold Invoice", {
                 }
             });
         }
+
+        // ✅ Add Payment button in Actions
+        // Only show for saved documents
+        if (!frm.doc.__islocal && frm.doc.status !== "Paid") {
+            frm.add_custom_button(__('Payment'), function() {
+                // Open new Hold Invoice Payment with prefilled values
+                frappe.new_doc('Hold Invoice Payment', {
+                    customer: frm.doc.customer,
+                    hold_invoice_no: frm.doc.name,
+                    sales_invoice: frm.doc.sales_invoice,
+                    amount_to_be_paid: frm.doc.grand_total-frm.doc.amount_paid,
+                });
+            }, __('Actions'));
+        }
     },
 
     sales_tax_charges_and_template: function(frm) {
@@ -92,7 +106,8 @@ frappe.ui.form.on("Hold Invoice", {
                 });
             }
         });
-    }
+    },
+  
 });
 
 
@@ -263,4 +278,42 @@ function apply_tax_template(frm, net_total) {
 function reset_scanner(frm) {
     frm.set_value("scan_barcode", "");
     frm.fields_dict.scan_barcode.$input.focus();
+}
+
+frappe.ui.form.on("Hold Invoice Payment Type", {
+	amount: function(frm, cdt, cdn) {
+		recalc_amount_paid(frm);
+	},
+
+	// If mode_of_payment changes we may want to recalc as well (in case UI logic modifies amount)
+	mode_of_payment: function(frm, cdt, cdn) {
+		recalc_amount_paid(frm);
+	}
+});
+
+
+function recalc_amount_paid(frm) {
+	let total = 0.0;
+
+	(frm.doc.payments || []).forEach(row => {
+		// ensure numeric
+		let amt = row.amount || 0;
+		total += flt(amt);
+	});
+
+	// set read-only field
+	frm.set_value('amount_paid', total);
+
+	// Calculate remaining amount_to_be_paid = original - paid
+	let original = frm.doc._original_amount_to_be_paid;
+	// Fallback: if original not set (edge-case), treat current amount_to_be_paid as original + paid
+	if (original === undefined) {
+		original = flt(frm.doc.amount_to_be_paid) + flt(total);
+		frm.doc._original_amount_to_be_paid = original;
+	}
+
+	let remaining = flt(original) - flt(total);
+	if (remaining < 0) remaining = 0;
+
+	// frm.set_value('amount_to_be_paid', remaining);
 }

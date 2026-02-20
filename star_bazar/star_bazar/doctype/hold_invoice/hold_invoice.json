@@ -7,6 +7,8 @@
  "engine": "InnoDB",
  "field_order": [
   "customer",
+  "column_break_zftv",
+  "status",
   "section_break_bnzo",
   "scan_barcode",
   "section_break_iuso",
@@ -14,6 +16,7 @@
   "net_total",
   "amended_from",
   "sales_invoice",
+  "journal_entry",
   "section_break_jnnt",
   "sales_tax_charges_and_template",
   "sales_taxes_and_charges",
@@ -21,7 +24,10 @@
   "column_break_hygj",
   "column_break_mnzt",
   "total_taxes",
-  "grand_total"
+  "grand_total",
+  "tab_break_ndc4",
+  "payments",
+  "amount_paid"
  ],
  "fields": [
   {
@@ -114,13 +120,49 @@
    "fieldtype": "Currency",
    "label": "Net Total",
    "read_only": 1
+  },
+  {
+   "fieldname": "column_break_zftv",
+   "fieldtype": "Column Break"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Unpaid\nPartially Paid\nPaid",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amount_paid",
+   "fieldtype": "Currency",
+   "label": "Amount Paid",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tab_break_ndc4",
+   "fieldtype": "Tab Break",
+   "label": "Payment"
+  },
+  {
+   "fieldname": "payments",
+   "fieldtype": "Table",
+   "label": "Payments",
+   "options": "Hold Invoice Payment Type"
+  },
+  {
+   "fieldname": "journal_entry",
+   "fieldtype": "Link",
+   "label": "Journal Entry",
+   "options": "Journal Entry",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-02-19 04:14:29.409476",
+ "modified": "2026-02-20 03:58:55.205677",
  "modified_by": "Administrator",
  "module": "Star Bazar",
  "name": "Hold Invoice",

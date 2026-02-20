@@ -1,6 +1,6 @@
 import frappe
 
-DEFAULT_WAREHOUSE = "Stores - A"
+DEFAULT_WAREHOUSE = "Stores - SB"
 
 def update_hold_stock(doc, method):
 
