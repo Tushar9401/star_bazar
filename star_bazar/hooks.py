@@ -150,6 +150,13 @@ page_js = {
 # 		"on_trash": "method"
 # 	}
 # }
+doc_events = {
+    "Hold Invoice": {
+        "after_insert": "star_bazar.hold.update_hold_stock",
+        "on_update": "star_bazar.hold.update_hold_stock",
+        "on_trash": "star_bazar.hold.restore_hold_stock"
+    }
+}
 
 # Scheduled Tasks
 # ---------------

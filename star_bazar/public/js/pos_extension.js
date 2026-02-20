@@ -1,4 +1,154 @@
 frappe.require("/assets/star_bazar/js/qz-tray.js");
+
+
+// =====================
+// HOLD ITEMS LOGIC
+// =====================
+
+function append_to_existing_hold(hold_name, pos_doc) {
+
+    frappe.call({
+        method: "frappe.client.get",
+        args: {
+            doctype: "Hold Invoice",
+            name: hold_name
+        },
+        callback: function(r) {
+
+            let hold_doc = r.message;
+
+            // 1️⃣ Append items
+            pos_doc.items.forEach(row => {
+                hold_doc.items.push({
+                    item_code: row.item_code,
+                    item_name: row.item_name,
+                    qty: row.qty,
+                    unit_of_measure: row.uom,
+                    price: row.rate,
+                    amount: row.amount
+                });
+            });
+
+            // 2️⃣ Update totals by adding POS totals
+            hold_doc.net_total = flt(hold_doc.net_total) + flt(pos_doc.net_total);
+
+            // POS tax field is usually:
+            let pos_tax = flt(pos_doc.total_taxes_and_charges) || 0;
+
+            hold_doc.total_taxes = flt(hold_doc.total_taxes) + pos_tax;
+
+            hold_doc.grand_total = flt(hold_doc.grand_total) + flt(pos_doc.grand_total);
+
+            // 3️⃣ Save
+            frappe.call({
+                method: "frappe.client.save",
+                args: { doc: hold_doc },
+                freeze: true,
+                callback: function() {
+
+                    frappe.show_alert({
+                        message: "Items Appended & Totals Updated",
+                        indicator: "green"
+                    });
+
+                    window.cur_pos.make_new_invoice();
+                }
+            });
+        }
+    });
+}
+
+function create_new_hold(pos_doc) {
+
+    let hold_items = [];
+
+    pos_doc.items.forEach(row => {
+        hold_items.push({
+            item_code: row.item_code,
+            item_name: row.item_name,
+            qty: row.qty,
+            unit_of_measure: row.uom,
+            price: row.rate,
+            amount: row.amount
+        });
+    });
+
+    frappe.call({
+        method: "frappe.client.insert",
+        args: {
+            doc: {
+                doctype: "Hold Invoice",
+                customer: pos_doc.customer,
+                net_total: pos_doc.net_total,
+                total_taxes: pos_doc.total_taxes_and_charges,
+                grand_total: pos_doc.grand_total,
+                items: hold_items
+            }
+        },
+        freeze: true,
+        callback: function() {
+
+            frappe.show_alert({
+                message: "New Hold Invoice Created",
+                indicator: "green"
+            });
+
+            window.cur_pos.make_new_invoice();
+        }
+    });
+}
+
+function create_hold_invoice() {
+
+    if (!window.cur_pos || !window.cur_pos.frm) {
+        frappe.msgprint("POS not ready");
+        return;
+    }
+
+    let pos = window.cur_pos;
+    let doc = pos.frm.doc;
+
+    if (!doc.items || doc.items.length === 0) {
+        frappe.msgprint("No items to hold");
+        return;
+    }
+
+    if (!doc.customer) {
+        frappe.msgprint("Please select customer");
+        return;
+    }
+
+    let customer = doc.customer;
+
+    // Step 1: Check if Draft Hold Invoice exists for this customer
+    frappe.call({
+        method: "frappe.client.get_list",
+        args: {
+            doctype: "Hold Invoice",
+            filters: {
+                customer: customer,
+                docstatus: 0  // Draft only
+            },
+            fields: ["name"],
+            limit_page_length: 1
+        },
+        callback: function(res) {
+
+            if (res.message && res.message.length > 0) {
+                // Existing Draft found
+                append_to_existing_hold(res.message[0].name, doc);
+            } else {
+                // No draft found → Create new
+                create_new_hold(doc);
+            }
+        }
+    });
+}
+
+// =====================
+// POS BUTTON ADDITION
+// =====================
+
 $(document).on('page-change', function() {
     if (frappe.get_route()[0] === 'point-of-sale') {
         
@@ -53,7 +203,22 @@ $(document).on('page-change', function() {
                         </button>
                     `);
 
+                    // $('#btn-hold-invoice').on('click', function() {
+                    //     frappe.set_route('List', 'Hold Invoice');
+                    // });
                     $('#btn-hold-invoice').on('click', function() {
+                        create_hold_invoice();
+                    });
+                }
+
+                if ($('#btn-view-hold-invoice').length === 0) {
+                    $header_actions.prepend(`
+                        <button id="btn-view-hold-invoice" class="btn btn-default btn-sm ml-2">
+                            ${__('View Hold Invoice')}
+                        </button>
+                    `);
+
+                    $('#btn-view-hold-invoice').on('click', function() {
                         frappe.set_route('List', 'Hold Invoice');
                     });
                 }
@@ -73,118 +238,67 @@ $(document).on('page-change', function() {
 $(document).on('page-change', function () {
     if (frappe.get_route()[0] === 'point-of-sale') {
 
-        let waitForPOS = setInterval(() => {
+        let wait = setInterval(() => {
 
             if (window.cur_pos && window.cur_pos.frm) {
-
-                clearInterval(waitForPOS);
+                clearInterval(wait);
 
                 const pos = window.cur_pos;
-                let ebt_active = false;
 
-                pos.frm.fields_dict.payments.grid.wrapper.on("change", function () {
+                $(document).on("change", 'select[data-fieldname="custom_tax_mode"]', function () {
 
-                    let doc = pos.frm.doc;
+                    let mode = $(this).val();
 
-                    let is_ebt = doc.payments.some(p =>
-                        p.mode_of_payment === "EBT" && p.amount > 0
-                    );
-
-                    // ======================
-                    // IF EBT SELECTED
-                    // ======================
-                    if (is_ebt && !ebt_active) {
-
-                    let invalid_items = [];
-                    let promises = [];
-
-                    doc.items.forEach(row => {
-
-                        let p = frappe.db.get_value("Item", row.item_code, "custom_food_stamp_enable")
-                            .then(r => {
-
-                                if (!r.message || !r.message.custom_food_stamp_enable) {
-                                    invalid_items.push(row.item_name);
-                                }
-
-                            });
-
-                        promises.push(p);
-                    });
-
-                    Promise.all(promises).then(() => {
-
-                        if (invalid_items.length > 0) {
-
-                            frappe.msgprint({
-                                title: "EBT Error",
-                                indicator: "red",
-                                message:
-                                    "These items are not EBT eligible:<br><br>" +
-                                    invalid_items.join("<br>")
-                            });
-
-                            // Reset EBT payment
-                            doc.payments.forEach(p => {
-                                if (p.mode_of_payment === "EBT") {
-                                    p.amount = 0;
-                                }
-                            });
-
-                            pos.frm.refresh_field("payments");
-                            return;
-                        }
-
-                        // Remove taxes
-                        // Remove taxes completely
-                        pos.original_tax_template = doc.taxes_and_charges;
-                        pos.original_taxes = JSON.parse(JSON.stringify(doc.taxes || []));
-
-                        // Clear tax template
-                        pos.frm.set_value("taxes_and_charges", "");
-
-                        // Clear tax table rows
-                        doc.taxes = [];
-                        pos.frm.refresh_field("taxes");
-
-                        // Recalculate totals
-                        pos.frm.script_manager.trigger("calculate_taxes_and_totals");
-
-                        ebt_active = true;
-
-                        console.log("✅ EBT taxes fully removed");
-
-
-                    });
-
-                }
-                    // ======================
-                    // IF EBT REMOVED
-                    // ======================
-                    if (!is_ebt && ebt_active) {
-
-                        if (pos.original_tax_template) {
-                            pos.frm.set_value("taxes_and_charges", pos.original_tax_template);
-                        }
-
-                        if (pos.original_taxes) {
-                            doc.taxes = pos.original_taxes;
-                            pos.frm.refresh_field("taxes");
-                        }
-
-                        pos.frm.script_manager.trigger("calculate_taxes_and_totals");
-
-                        ebt_active = false;
-                        console.log("✅ Taxes restored properly");
+                    if (mode === "Non Tax") {
+                        removeTaxes(pos);
+                    } else {
+                        restoreTaxes(pos);
                     }
+
                 });
 
-                console.log("✅ FINAL EBT logic loaded");
+                console.log("✅ Tax Mode logic loaded");
             }
 
-        }, 500);
+        }, 300);
     }
 });
+
+function removeTaxes(pos) {
+
+    let doc = pos.frm.doc;
+
+    pos.original_tax_template = doc.taxes_and_charges;
+    pos.original_taxes = JSON.parse(JSON.stringify(doc.taxes || []));
+
+    pos.frm.set_value("taxes_and_charges", "");
+    doc.taxes = [];
+    pos.frm.refresh_field("taxes");
+
+    pos.frm.script_manager.trigger("calculate_taxes_and_totals");
+
+    console.log("✅ Taxes removed");
+}
+
+function restoreTaxes(pos) {
+
+    let doc = pos.frm.doc;
+
+    if (pos.original_tax_template) {
+        pos.frm.set_value("taxes_and_charges", pos.original_tax_template);
+    }
+
+    if (pos.original_taxes) {
+        doc.taxes = pos.original_taxes;
+        pos.frm.refresh_field("taxes");
+    }
+
+    pos.frm.script_manager.trigger("calculate_taxes_and_totals");
+
+    console.log("✅ Taxes restored");
+}
+
+
 
 // ===============================
 // RECEIPT BARCODE SCAN HANDLER
@@ -306,7 +420,6 @@ $(document).on("click", ".item-wrapper", function () {
     }, 100);
 });
 
-
 $(document).on('page-change', function () {
     if (frappe.get_route()[0] === 'point-of-sale') {
 
@@ -324,10 +437,5 @@ $(document).on('page-change', function () {
 
     }
 });
-
-
-
-
-
 
 

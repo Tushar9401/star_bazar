@@ -26,7 +26,19 @@
     "parenttype": "POS Settings",
     "read_only": 0,
     "reqd": 0
-   }
+   },
+   {
+    "default_value": "Tax",
+    "fieldname": "custom_tax_mode",
+    "fieldtype": "Select",
+    "label": "Tax Mode",
+    "options": "Tax\nNon Tax",
+    "parent": "POS Settings",
+    "parentfield": "invoice_fields",
+    "parenttype": "POS Settings",
+    "read_only": 0,
+    "reqd": 0
+   }   
   ],
   "modified": "2026-02-18 08:53:19.611106",
   "name": "POS Settings",
