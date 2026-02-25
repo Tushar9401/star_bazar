@@ -190,6 +190,10 @@ doc_events = {
 # override_whitelisted_methods = {
 # 	"frappe.desk.doctype.event.event.get_events": "star_bazar.event.get_events"
 # }
+# override_whitelisted_methods = {
+#     "erpnext.accounts.doctype.pricing_rule.pricing_rule.apply_pricing_rule":
+#         "star_bazar.overrides.pricing_rule_override.apply_pricing_rule"
+# }
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,

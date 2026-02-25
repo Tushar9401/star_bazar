@@ -380,45 +380,45 @@ $(document).on("input", ".search-field input", function () {
     }
 });
 
-// ===============================
-// MERGE SAME ITEM IN ITEM LIST
-// ===============================
+// // ===============================
+// // MERGE SAME ITEM IN ITEM LIST
+// // ===============================
 
-function merge_duplicate_items_v15() {
+// function merge_duplicate_items_v15() {
 
-    if (!window.cur_pos || !window.cur_pos.frm) return;
+//     if (!window.cur_pos || !window.cur_pos.frm) return;
 
-    let frm = window.cur_pos.frm;
-    let items = frm.doc.items || [];
+//     let frm = window.cur_pos.frm;
+//     let items = frm.doc.items || [];
 
-    let item_map = {};
-    let new_items = [];
+//     let item_map = {};
+//     let new_items = [];
 
-    items.forEach(row => {
+//     items.forEach(row => {
 
-        if (item_map[row.item_code]) {
+//         if (item_map[row.item_code]) {
 
-            item_map[row.item_code].qty += row.qty;
+//             item_map[row.item_code].qty += row.qty;
 
-        } else {
+//         } else {
 
-            item_map[row.item_code] = row;
-            new_items.push(row);
-        }
-    });
+//             item_map[row.item_code] = row;
+//             new_items.push(row);
+//         }
+//     });
 
-    frm.doc.items = new_items;
+//     frm.doc.items = new_items;
 
-    frm.refresh_field("items");
+//     frm.refresh_field("items");
 
-}
+// }
 
-// Trigger merge AFTER every item add
-$(document).on("click", ".item-wrapper", function () {
-    setTimeout(() => {
-        merge_duplicate_items_v15();
-    }, 100);
-});
+// // Trigger merge AFTER every item add
+// $(document).on("click", ".item-wrapper", function () {
+//     setTimeout(() => {
+//         merge_duplicate_items_v15();
+//     }, 100);
+// });
 
 $(document).on('page-change', function () {
     if (frappe.get_route()[0] === 'point-of-sale') {
@@ -437,5 +437,86 @@ $(document).on('page-change', function () {
 
     }
 });
+
+
+async function handle_pack_conversion() {
+
+    if (!window.cur_pos || !window.cur_pos.frm) return;
+
+    let frm = window.cur_pos.frm;
+    let items = frm.doc.items || [];
+
+    for (let row of [...items]) {
+
+        if (!row.item_code) continue;
+
+        let item = await frappe.db.get_doc("Item", row.item_code);
+
+        if (!item.custom_bundle_item_code || !item.custom_bundle_qty) continue;
+
+        let bundle_qty = item.custom_bundle_qty;
+        let total_qty = row.qty;
+
+        if (total_qty < bundle_qty) continue;
+
+        let pack_count = Math.floor(total_qty / bundle_qty);
+        let remaining = total_qty % bundle_qty;
+
+        // Remove original row
+        frappe.model.clear_doc(row.doctype, row.name);
+
+        frm.refresh_field("items");
+
+        // Add bundle packs
+        for (let i = 0; i < pack_count; i++) {
+
+            let new_row = frm.add_child("items");
+
+            new_row.item_code = item.custom_bundle_item_code;
+            frm.script_manager.trigger("item_code", new_row.doctype, new_row.name);
+
+            new_row.qty = 1;
+        }
+
+        // Add remaining normal qty
+        if (remaining > 0) {
+
+            let new_row = frm.add_child("items");
+
+            new_row.item_code = row.item_code;
+            frm.script_manager.trigger("item_code", new_row.doctype, new_row.name);
+
+            new_row.qty = remaining;
+        }
+
+        frm.refresh_field("items");
+        frm.script_manager.trigger("calculate_taxes_and_totals");
+    }
+}
+
+function attach_pack_hook() {
+
+    const wait_for_pos = setInterval(() => {
+
+        if (!window.cur_pos || !window.cur_pos.frm) return;
+
+        clearInterval(wait_for_pos);
+
+        let frm = window.cur_pos.frm;
+
+        frm.cscript.items_add = function() {
+            setTimeout(() => handle_pack_conversion(), 200);
+        };
+
+        frm.cscript.qty = function() {
+            setTimeout(() => handle_pack_conversion(), 200);
+        };
+
+        console.log("Pack conversion hook attached ✅");
+
+    }, 1000);
+}
+
+attach_pack_hook();
 
 
