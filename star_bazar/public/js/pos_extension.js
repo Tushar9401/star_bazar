@@ -22,6 +22,7 @@ function append_to_existing_hold(hold_name, pos_doc) {
                 hold_doc.items.push({
                     item_code: row.item_code,
                     item_name: row.item_name,
+                    item_group: row.item_group,
                     qty: row.qty,
                     unit_of_measure: row.uom,
                     price: row.rate,
@@ -66,6 +67,7 @@ function create_new_hold(pos_doc) {
         hold_items.push({
             item_code: row.item_code,
             item_name: row.item_name,
+            item_group: row.item_group,
             qty: row.qty,
             unit_of_measure: row.uom,
             price: row.rate,

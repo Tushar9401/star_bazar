@@ -1,6 +1,8 @@
-frappe.ui.form.on('Shop All Products', {
+// Copyright (c) 2026, Tushar Thakkar and contributors
+// For license information, please see license.txt
 
-    item: function(frm) {
+frappe.ui.form.on("Item Scheme", {
+	 item: function(frm) {
         if (frm.doc.item) {
             frappe.call({
                 method: "frappe.client.get",
@@ -37,5 +39,4 @@ frappe.ui.form.on('Shop All Products', {
             });
         }
     }
-
 });

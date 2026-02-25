@@ -7,6 +7,12 @@ app_license = "mit"
 app_include_css = "/assets/star_bazar/css/pos_custom_final.css"
 
 
+scheduler_events = {
+    "daily": [
+        "star_bazar.cron.item_scheme.expire_item_schemes"
+    ]
+}
+
 # Apps
 # ------------------
 
@@ -152,7 +158,7 @@ page_js = {
 # }
 doc_events = {
     "Hold Invoice": {
-        "after_insert": "star_bazar.hold.update_hold_stock",
+        # "after_insert": "star_bazar.hold.update_hold_stock",
         "on_update": "star_bazar.hold.update_hold_stock",
         "on_trash": "star_bazar.hold.restore_hold_stock"
     }
