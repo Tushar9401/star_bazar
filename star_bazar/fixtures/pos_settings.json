@@ -41,9 +41,9 @@
    },
    {
     "default_value": null,
-    "fieldname": "remarks",
-    "fieldtype": "Small Text",
-    "label": "Remarks",
+    "fieldname": "custom_remark",
+    "fieldtype": "Data",
+    "label": "Remark",
     "options": null,
     "parent": "POS Settings",
     "parentfield": "invoice_fields",
@@ -52,7 +52,7 @@
     "reqd": 0
    }
   ],
-  "modified": "2026-02-21 04:53:02.452597",
+  "modified": "2026-02-26 08:54:04.886516",
   "name": "POS Settings",
   "pos_search_fields": []
  }

@@ -12,7 +12,14 @@ scheduler_events = {
         "star_bazar.cron.item_scheme.expire_item_schemes"
     ]
 }
-
+fixtures = [
+    {
+        "doctype": "Print Format",
+        "filters": {
+            "name": ["in", ["POS Invoice"]]
+        }
+    }
+]
 # Apps
 # ------------------
 
