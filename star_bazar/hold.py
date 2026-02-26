@@ -2,7 +2,7 @@ import frappe
 
 DEFAULT_WAREHOUSE = frappe.db.get_single_value("Stock Settings", "default_warehouse")
 
-DEFAULT_WAREHOUSE = "Stores - SB"
+# DEFAULT_WAREHOUSE = "Stores - A"
 
 def update_hold_stock(doc, method):
 
@@ -68,7 +68,6 @@ def create_stock_entry(item_code, item_group, qty, warehouse, entry_type):
 
     # ✅ SCHEME LOGIC
     if item_group == "Scheme":
-
         bundle_name = frappe.db.get_value(
             "Product Bundle",
             {"new_item_code": item_code},
@@ -115,3 +114,4 @@ def create_stock_entry(item_code, item_group, qty, warehouse, entry_type):
 
     se.insert(ignore_permissions=True)
     se.submit()
+
