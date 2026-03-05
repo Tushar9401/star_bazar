@@ -237,7 +237,39 @@ $(document).on('page-change', function() {
 // EBT VALIDATION LOGIC
 // =====================
 
+// $(document).on('page-change', function () {
+//     if (frappe.get_route()[0] === 'point-of-sale') {
+
+//         let wait = setInterval(() => {
+
+//             if (window.cur_pos && window.cur_pos.frm) {
+//                 clearInterval(wait);
+
+//                 const pos = window.cur_pos;
+
+//                 $(document).on("change", 'select[data-fieldname="custom_tax_mode"]', function () {
+
+//                     let mode = $(this).val();
+
+//                     if (mode === "Non Tax") {
+//                         removeTaxes(pos);
+//                         calculateEBTSplit(pos);
+//                     } else {
+//                         restoreTaxes(pos);
+//                     }
+
+//                 });
+
+//                 console.log("✅ Tax Mode logic loaded");
+//             }
+
+//         }, 300);
+//     }
+// });
+
+
 $(document).on('page-change', function () {
+
     if (frappe.get_route()[0] === 'point-of-sale') {
 
         let wait = setInterval(() => {
@@ -247,40 +279,217 @@ $(document).on('page-change', function () {
 
                 const pos = window.cur_pos;
 
-                $(document).on("change", 'select[data-fieldname="custom_tax_mode"]', function () {
+                /* ============================================
+                   1️⃣ LOAD FOOD STAMP FLAG AFTER ITEM ADDED
+                ============================================ */
 
-                    let mode = $(this).val();
+                const original_calculate = pos.frm.script_manager.trigger;
 
-                    if (mode === "Non Tax") {
-                        removeTaxes(pos);
-                    } else {
-                        restoreTaxes(pos);
+                pos.frm.script_manager.trigger = function () {
+
+                    let result = original_calculate.apply(this, arguments);
+
+                    if (arguments[0] === "calculate_taxes_and_totals") {
+
+                        (pos.frm.doc.items || []).forEach(item => {
+
+                            if (item.custom_food_stamp_enable === undefined && item.item_code) {
+
+                                frappe.db.get_value(
+                                    "Item",
+                                    item.item_code,
+                                    "custom_food_stamp_enable"
+                                ).then(r => {
+
+                                    item.custom_food_stamp_enable =
+                                        r.message.custom_food_stamp_enable || 0;
+
+                                    pos.frm.refresh_field("items");
+                                });
+                            }
+                        });
                     }
 
-                });
+                    return result;
+                };
 
-                console.log("✅ Tax Mode logic loaded");
+
+                /* ============================================
+                   2️⃣ TAX MODE CHANGE
+                ============================================ */
+
+                $(document).on(
+                    "change",
+                    'select[data-fieldname="custom_tax_mode"]',
+                    async function () {
+
+                        let mode = $(this).val();
+
+                        if (mode === "Non Tax") {
+                            removeTaxes(pos);
+                            calculateEBTSplit(pos);
+                        } else {
+                            restoreTaxes(pos);
+                        }
+                    }
+                );
+
+                console.log("✅ Stable POS EBT logic loaded");
             }
 
         }, 300);
     }
 });
 
-function removeTaxes(pos) {
+
+/* ============================================
+   REMOVE TAX FROM FOOD ITEMS ONLY
+============================================ */
+
+// async function removeTaxes(pos) {
+
+//     let doc = pos.frm.doc;
+
+//     // Save original taxes
+//     pos.original_tax_template = doc.taxes_and_charges;
+//     pos.original_taxes = JSON.parse(JSON.stringify(doc.taxes || []));
+
+//     // 1️⃣ Remove ALL taxes first
+//     pos.frm.set_value("taxes_and_charges", "");
+//     doc.taxes = [];
+//     pos.frm.refresh_field("taxes");
+
+//     pos.frm.script_manager.trigger("calculate_taxes_and_totals");
+
+//     // 2️⃣ Now calculate tax only for NON-FOOD items
+//     let non_food_tax_total = 0;
+
+//     for (let item of (doc.items || [])) {
+
+//         let r = await frappe.db.get_value(
+//             "Item",
+//             item.item_code,
+//             "custom_food_stamp_enable"
+//         );
+
+//         if (r.message.custom_food_stamp_enable != 1) {
+
+//             // apply tax only on non-food
+//             let tax_rate = 0.08; // ⚠ replace with your actual tax rate (example 2%)
+
+//             non_food_tax_total += flt(item.net_amount) * tax_rate;
+//         }
+//     }
+
+//     // 3️⃣ Add tax row manually for non-food
+//     if (non_food_tax_total > 0) {
+
+//         let tax_row = pos.frm.add_child("taxes");
+
+//         tax_row.charge_type = "Actual";
+//         tax_row.account_head = pos.original_taxes?.[0]?.account_head;
+//         tax_row.tax_amount = non_food_tax_total;
+
+//         pos.frm.refresh_field("taxes");
+//     }
+
+//     pos.frm.script_manager.trigger("calculate_taxes_and_totals");
+
+//     console.log("✅ Tax applied only on non-food items");
+// }
+
+async function removeTaxes(pos) {
 
     let doc = pos.frm.doc;
 
+    // Save original tax state
     pos.original_tax_template = doc.taxes_and_charges;
     pos.original_taxes = JSON.parse(JSON.stringify(doc.taxes || []));
 
+    // 1️⃣ Remove all taxes
     pos.frm.set_value("taxes_and_charges", "");
     doc.taxes = [];
     pos.frm.refresh_field("taxes");
+    pos.frm.script_manager.trigger("calculate_taxes_and_totals");
+
+    let ebt_total = 0;
+    let non_food_total = 0;
+    let non_food_items = [];
+
+    // 2️⃣ Process each item
+    for (let item of (doc.items || [])) {
+
+        let r = await frappe.db.get_value(
+            "Item",
+            item.item_code,
+            [
+                "custom_food_stamp_enable",
+                "custom_non_food",
+                "custom_tobaco"
+            ]
+        );
+
+        let is_food = r.message.custom_food_stamp_enable || 0;
+        let is_non_food = r.message.custom_non_food || 0;
+        let is_tobacco = r.message.custom_tobaco || 0;
+
+        if (is_food == 1) {
+
+            ebt_total += flt(item.net_amount);
+
+        } else if (is_non_food == 1) {
+
+            let tax = flt(item.net_amount) * 0.08;
+            non_food_total += flt(item.net_amount) + tax;
+
+            non_food_items.push(
+                `${item.item_name} (8% tax)`
+            );
+
+        } else if (is_tobacco == 1) {
+
+            let tax = flt(item.net_amount) * 0.05;
+            non_food_total += flt(item.net_amount) + tax;
+
+            non_food_items.push(
+                `${item.item_name} (5% tax)`
+            );
+        }
+    }
+
+    // 3️⃣ Add tax row manually
+    if (non_food_total > 0) {
+
+        let tax_row = pos.frm.add_child("taxes");
+
+        tax_row.charge_type = "Actual";
+        tax_row.account_head = pos.original_taxes?.[0]?.account_head;
+        tax_row.tax_amount = non_food_total - (doc.net_total - ebt_total);
+
+        pos.frm.refresh_field("taxes");
+    }
 
     pos.frm.script_manager.trigger("calculate_taxes_and_totals");
 
-    console.log("✅ Taxes removed");
+    // 4️⃣ Show breakdown popup
+    frappe.msgprint({
+        title: "EBT Breakdown",
+        message: `
+            <b>EBT Eligible:</b> $${ebt_total.toFixed(2)}<br><br>
+            <b>Non-Food / Tobacco Items:</b><br>
+            ${non_food_items.join("<br>")}<br><br>
+            <b>Pay via Card/Cash:</b> $${non_food_total.toFixed(2)}
+        `,
+        indicator: "green"
+    });
+
+    console.log("✅ Tax applied correctly per category");
 }
+
+
+/* ============================================
+   RESTORE TAX
+============================================ */
 
 function restoreTaxes(pos) {
 
@@ -297,49 +506,87 @@ function restoreTaxes(pos) {
 
     pos.frm.script_manager.trigger("calculate_taxes_and_totals");
 
-    console.log("✅ Taxes restored");
+    console.log("✅ Original taxes restored");
 }
 
 
+/* ============================================
+   CALCULATE EBT SPLIT
+============================================ */
 
-// ===============================
-// RECEIPT BARCODE SCAN HANDLER
-// ===============================
+async function calculateEBTSplit(pos) {
 
-// let receipt_scan_buffer = "";
+    let doc = pos.frm.doc;
+    let ebt_total = 0;
 
-// $(document).on("keypress", function (e) {
+    for (let item of (doc.items || [])) {
 
-//     if (e.key === "Enter") {
+        if (!item.item_code) continue;
 
-//         let scanned_value = receipt_scan_buffer.trim();
-//         receipt_scan_buffer = "";
+        let r = await frappe.db.get_value(
+            "Item",
+            item.item_code,
+            "custom_food_stamp_enable"
+        );
 
-//         if (scanned_value.startsWith("INV:")) {
+        let is_food = r.message.custom_food_stamp_enable || 0;
 
-//             let short_id = scanned_value.replace("INV:", "");
+        if (is_food == 1) {
+            ebt_total += flt(item.net_amount);
+        }
+    }
 
-//             frappe.db.get_list("POS Invoice", {
-//                 filters: {
-//                     name: ["like", "%" + short_id]
-//                 },
-//                 fields: ["name"],
-//                 limit: 1
-//             }).then(r => {
+    let grand_total = flt(doc.grand_total);
+    let remaining = grand_total - ebt_total;
 
-//                 if (r.length) {
-//                     frappe.set_route("Form", "POS Invoice", r[0].name);
-//                 } else {
-//                     frappe.msgprint("Invoice not found: " + short_id);
-//                 }
+    console.log("EBT Eligible:", ebt_total);
+    console.log("Remaining:", remaining);
 
-//             });
-//         }
+    frappe.msgprint({
+        title: "EBT Breakdown",
+        message: `
+            <b>EBT Eligible:</b> $${ebt_total.toFixed(2)}<br>
+            <b>Pay via Card/Cash:</b> $${remaining.toFixed(2)}
+        `,
+        indicator: "green"
+    });
+}
 
-//     } else {
-//         receipt_scan_buffer += e.key;
+// function removeTaxes(pos) {
+
+//     let doc = pos.frm.doc;
+
+//     pos.original_tax_template = doc.taxes_and_charges;
+//     pos.original_taxes = JSON.parse(JSON.stringify(doc.taxes || []));
+
+//     pos.frm.set_value("taxes_and_charges", "");
+//     doc.taxes = [];
+//     pos.frm.refresh_field("taxes");
+
+//     pos.frm.script_manager.trigger("calculate_taxes_and_totals");
+
+//     console.log("✅ Taxes removed");
+// }
+
+// function restoreTaxes(pos) {
+
+//     let doc = pos.frm.doc;
+
+//     if (pos.original_tax_template) {
+//         pos.frm.set_value("taxes_and_charges", pos.original_tax_template);
 //     }
-// });
+
+//     if (pos.original_taxes) {
+//         doc.taxes = pos.original_taxes;
+//         pos.frm.refresh_field("taxes");
+//     }
+
+//     pos.frm.script_manager.trigger("calculate_taxes_and_totals");
+
+//     console.log("✅ Taxes restored");
+// }
+
+
 
 
 // ===============================
