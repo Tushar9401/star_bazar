@@ -168,6 +168,9 @@ doc_events = {
         # "after_insert": "star_bazar.hold.update_hold_stock",
         "on_update": "star_bazar.hold.update_hold_stock",
         "on_trash": "star_bazar.hold.restore_hold_stock"
+    },
+    "Online Order": {
+        "after_insert": "star_bazar.online_order.notify_new_online_order"
     }
 }
 

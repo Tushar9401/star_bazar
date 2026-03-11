@@ -768,4 +768,24 @@ function attach_pack_hook() {
 
 attach_pack_hook();
 
+// ===============================
+// ONLINE ORDER REALTIME ALERT
+// ===============================
+
+frappe.realtime.on("new_online_order", function(data) {
+
+    console.log("New Online Order:", data);
+
+    // 🔔 play notification sound
+    let audio = new Audio("/assets/star_bazar/sounds/soundreality-notification-mars-498937.mp3");
+    audio.play();
+
+    // popup message
+    frappe.show_alert({
+        message: `🛒 New Online Order from ${data.customer}`,
+        indicator: "green"
+    }, 10);
+
+});
+
 
