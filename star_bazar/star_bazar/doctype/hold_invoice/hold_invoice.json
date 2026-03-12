@@ -22,6 +22,7 @@
   "sales_taxes_and_charges",
   "section_break_mjnc",
   "column_break_hygj",
+  "ebt_amount",
   "column_break_mnzt",
   "total_taxes",
   "grand_total",
@@ -156,13 +157,19 @@
    "label": "Journal Entry",
    "options": "Journal Entry",
    "read_only": 1
+  },
+  {
+   "fieldname": "ebt_amount",
+   "fieldtype": "Currency",
+   "label": "EBT Amount",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-02-25 02:01:56.085436",
+ "modified": "2026-03-12 05:17:56.182706",
  "modified_by": "Administrator",
  "module": "Star Bazar",
  "name": "Hold Invoice",

@@ -110,6 +110,38 @@ frappe.ui.form.on("Hold Invoice", {
   
 });
 
+async function calculate_ebt_split(frm) {
+
+    let ebt_total = 0;
+    let taxable_total = 0;
+
+    for (let item of (frm.doc.items || [])) {
+
+        if (!item.item_code) continue;
+
+        let r = await frappe.db.get_value(
+            "Item",
+            item.item_code,
+            ["custom_food_stamp_enable"]
+        );
+
+        let is_food = r.message.custom_food_stamp_enable || 0;
+
+        if (is_food == 1) {
+            ebt_total += flt(item.amount);
+        } else {
+            taxable_total += flt(item.amount);
+        }
+    }
+  
+    frm.set_value("ebt_amount", ebt_total);
+    
+
+    console.log("EBT Eligible:", ebt_total);
+    console.log("Taxable Amount:", taxable_total);
+
+    apply_tax_template(frm, taxable_total);
+}
 
 // ✅ FETCH ITEM PRICE
 function handle_item_row(frm, barcode, item_code, item_name, uom) {
@@ -207,19 +239,55 @@ function recalculate_row(row) {
 
 
 // ✅ MASTER TOTAL ENGINE
-function calculate_totals(frm) {
+async function calculate_totals(frm) {
 
     let net_total = 0;
+    let taxable_total = 0;
+    let ebt_total = 0;
 
+    // Calculate Net Total first
     (frm.doc.items || []).forEach(item => {
         net_total += flt(item.amount);
     });
 
     frm.set_value("net_total", net_total);
 
-    apply_tax_template(frm, net_total);
-}
+    // If NO EBT → normal taxation
+    if (!has_ebt(frm)) {
 
+        frm.set_value("ebt_amount", 0);
+        apply_tax_template(frm, net_total);
+        return;
+    }
+
+    // If EBT exists → split items
+    for (let item of (frm.doc.items || [])) {
+
+        if (!item.item_code) continue;
+
+        let amount = flt(item.amount);
+
+        let r = await frappe.db.get_value(
+            "Item",
+            item.item_code,
+            ["custom_food_stamp_enable"]
+        );
+
+        let is_food = r.message.custom_food_stamp_enable || 0;
+
+        if (is_food == 1) {
+            ebt_total += amount;
+        } else {
+            taxable_total += amount;
+        }
+    }
+
+    frm.set_value("ebt_amount", ebt_total);
+
+
+    // Apply tax ONLY on taxable items
+    apply_tax_template(frm, taxable_total);
+}
 
 // ✅ TAX ENGINE
 function apply_tax_template(frm, net_total) {
@@ -301,14 +369,8 @@ frappe.ui.form.on("Hold Invoice Payment Type", {
 
         if (row.mode_of_payment === "EBT") {
 
-
-            frm.set_value("sales_tax_charges_and_template", null);
-
-            frm.clear_table("sales_taxes_and_charges");
-            frm.refresh_field("sales_taxes_and_charges");
-
             frappe.show_alert({
-                message: __("EBT Payment → Taxes Removed"),
+                message: __("EBT Enabled → Tax removed only for food stamp items"),
                 indicator: "orange"
             });
 
@@ -349,7 +411,12 @@ frappe.ui.form.on("Hold Invoice Payment Type", {
             
         }
 		recalc_amount_paid(frm);
-	}
+	},
+
+    payments_remove: function(frm) {
+        calculate_totals(frm);
+        recalc_amount_paid(frm);
+    }
 });
 
 function has_ebt(frm) {
