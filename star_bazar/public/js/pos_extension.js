@@ -1,6 +1,8 @@
 frappe.require("/assets/star_bazar/js/qz-tray.js");
 
 
+let order_notification_interval = null;
+let latest_online_order = null;
 // =====================
 // HOLD ITEMS LOGIC
 // =====================
@@ -222,6 +224,22 @@ $(document).on('page-change', function() {
 
                     $('#btn-view-hold-invoice').on('click', function() {
                         frappe.set_route('List', 'Hold Invoice');
+                    });
+                }
+
+                if ($('#btn-view-online-order').length === 0) {
+                    $header_actions.prepend(`
+                        <button id="btn-view-online-order" class="btn btn-default btn-sm ml-2">
+                            ${__('View Online Order')}
+                        </button>
+                    `);
+
+                    $('#btn-view-online-order').on('click', function() {
+                        if (order_notification_interval) {
+                            clearInterval(order_notification_interval);
+                            order_notification_interval = null;
+                        }
+                        frappe.set_route('List', 'Online Order');
                     });
                 }
 
@@ -772,20 +790,61 @@ attach_pack_hook();
 // ONLINE ORDER REALTIME ALERT
 // ===============================
 
-frappe.realtime.on("new_online_order", function(data) {
+let sound_allowed = false;
 
-    console.log("New Online Order:", data);
-
-    // 🔔 play notification sound
-    let audio = new Audio("/assets/star_bazar/sounds/soundreality-notification-mars-498937.mp3");
-    audio.play();
-
-    // popup message
-    frappe.show_alert({
-        message: `🛒 New Online Order from ${data.customer}`,
-        indicator: "green"
-    }, 10);
-
+document.addEventListener("click", function () {
+    sound_allowed = true;
 });
+
+// frappe.realtime.on("new_online_order", function(data) {
+
+//     console.log("New Online Order:", data);
+
+//     // popup message
+//     frappe.show_alert({
+//         message: `🛒 New Online Order from ${data.customer}`,
+//         indicator: "green"
+//     }, 10);
+
+//     // 🔔 play notification sound
+//     if (sound_allowed) {
+//         let audio = new Audio("/assets/star_bazar/sounds/soundreality-notification-mars-498937.mp3");
+//         audio.play();
+//     }
+
+// });
+    function show_online_order_notification() {
+
+        frappe.show_alert({
+            message: `
+                🔔 New Online Order<br>
+                Customer: ${latest_online_order.customer}<br>
+                Total: $${latest_online_order.total}
+            `,
+            indicator: "orange"
+        });
+
+        let audio = new Audio("/assets/star_bazar/sounds/soundreality-notification-mars-498937.mp3");
+        audio.play().catch(() => {});
+    }
+
+    frappe.realtime.on("new_online_order", function(data) {
+
+        console.log("New Online Order:", data);
+
+        latest_online_order = data;
+
+        show_online_order_notification();
+
+        // Start repeating every 30 seconds
+        if (!order_notification_interval) {
+
+            order_notification_interval = setInterval(() => {
+                show_online_order_notification();
+            }, 60000);
+
+        }
+
+    });
 
 
