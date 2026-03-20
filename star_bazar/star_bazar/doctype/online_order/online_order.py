@@ -1,9 +1,8 @@
-# Copyright (c) 2026, Tushar Thakkar and contributors
-# For license information, please see license.txt
-
-# import frappe
+import frappe
 from frappe.model.document import Document
 
 
 class OnlineOrder(Document):
-	pass
+
+    def after_insert(self):
+        frappe.msgprint("New Online Order Created")
