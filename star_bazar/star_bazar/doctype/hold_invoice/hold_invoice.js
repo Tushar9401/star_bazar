@@ -31,17 +31,17 @@ frappe.ui.form.on("Hold Invoice", {
 
         // ✅ Add Payment button in Actions
         // Only show for saved documents
-        if (!frm.doc.__islocal && frm.doc.status !== "Paid") {
-            frm.add_custom_button(__('Payment'), function() {
-                // Open new Hold Invoice Payment with prefilled values
-                frappe.new_doc('Hold Invoice Payment', {
-                    customer: frm.doc.customer,
-                    hold_invoice_no: frm.doc.name,
-                    sales_invoice: frm.doc.sales_invoice,
-                    amount_to_be_paid: frm.doc.grand_total-frm.doc.amount_paid,
-                });
-            }, __('Actions'));
-        }
+        // if (!frm.doc.__islocal && frm.doc.status !== "Paid") {
+        //     frm.add_custom_button(__('Payment'), function() {
+        //         // Open new Hold Invoice Payment with prefilled values
+        //         frappe.new_doc('Hold Invoice Payment', {
+        //             customer: frm.doc.customer,
+        //             hold_invoice_no: frm.doc.name,
+        //             sales_invoice: frm.doc.sales_invoice,
+        //             amount_to_be_paid: frm.doc.grand_total-frm.doc.amount_paid,
+        //         });
+        //     }, __('Actions'));
+        // }
     },
 
     sales_tax_charges_and_template: function(frm) {
@@ -283,6 +283,18 @@ async function calculate_totals(frm) {
     }
 
     frm.set_value("ebt_amount", ebt_total);
+    // ✅ ADD THIS BLOCK
+    let credit_card_amount = flt(net_total) - flt(ebt_total);
+    console.log("EBT Eligible:", ebt_total);
+
+  frappe.msgprint({
+    title: "Payment Split",
+    message: `
+        <b>EBT Amount:</b> ${ebt_total} <br>
+        <b>Credit Card Amount:</b> ${credit_card_amount}
+    `,
+    indicator: "green"
+});
 
 
     // Apply tax ONLY on taxable items
