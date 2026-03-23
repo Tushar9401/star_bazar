@@ -227,6 +227,18 @@ $(document).on('page-change', function() {
                     });
                 }
 
+                if ($('#btn-item-scheme').length === 0) {
+                    $header_actions.prepend(`
+                        <button id="btn-item-scheme" class="btn btn-default btn-sm ml-2">
+                            ${__('Item Scheme')}
+                        </button>
+                    `);
+
+                    $('#btn-item-scheme').on('click', function() {
+                        frappe.set_route('List', 'Item Scheme');
+                    });
+                }
+
                 if ($('#btn-view-online-order').length === 0) {
                     $header_actions.prepend(`
                         <button id="btn-view-online-order" class="btn btn-default btn-sm ml-2">
