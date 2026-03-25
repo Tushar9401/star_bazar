@@ -1,5 +1,140 @@
 frappe.require("/assets/star_bazar/js/qz-tray.js");
 
+// async function openDrawerThenPrint() {
+//     try {
+//         await qz.websocket.connect();
+
+//         const printer = await qz.printers.find("EPSON TM-T20II Receipt");
+//         const config = qz.configs.create(printer);
+
+//         const data = [
+//             '\x1B\x70\x00\x19\xFA'
+//         ];
+
+//         await qz.print(config, data);
+
+//         console.log("Drawer Opened");
+
+//         window.print();
+
+//     } catch (err) {
+//         console.error("QZ Error:", err);
+//     }
+// }
+// console.log("POS extension loaded on point-of-sale page");
+
+// window.testQZConnection = async function () {
+//     try {
+//         await window.ensureQZReady();
+
+//         console.log("Before connect");
+//         if (!qz.websocket.isActive()) {
+//             await qz.websocket.connect();
+//         }
+//         console.log("After connect");
+
+//         const printers = await qz.printers.find();
+//         console.log("Available printers:", printers);
+
+//         return printers;
+//     } catch (err) {
+//         console.error("QZ connection test failed:", err);
+//     }
+// };
+
+// window.testDrawerOnly = async function () {
+//     try {
+//         await window.ensureQZReady();
+
+//         console.log("Before connect");
+//         if (!qz.websocket.isActive()) {
+//             await qz.websocket.connect();
+//         }
+//         console.log("After connect");
+
+//         const printer = await qz.printers.find("EPSON TM-T20II Receipt");
+//         console.log("Printer found:", printer);
+
+//         const config = qz.configs.create(printer, { encoding: "CP437" });
+
+//         console.log("Sending drawer pulse...");
+//         await qz.print(config, [
+//             {
+//                 type: "raw",
+//                 format: "command",
+//                 data: "\x1B\x70\x00\x19\xFA"
+//             }
+//         ]);
+//         console.log("Drawer command sent");
+//     } catch (err) {
+//         console.error("Drawer test failed:", err);
+//     }
+// };
+console.log("POS extension loaded on point-of-sale page");
+
+window.openDrawerOnly = async function () {
+    try {
+        await window.ensureQZReady();
+
+        if (!qz.websocket.isActive()) {
+            await qz.websocket.connect();
+        }
+
+        const printer = await qz.printers.find("EPSON TM-T20II Receipt");
+        const config = qz.configs.create(printer, { encoding: "CP437" });
+
+        await qz.print(config, [{
+            type: "raw",
+            format: "command",
+            data: "\x1B\x70\x00\x19\xFA"
+        }]);
+
+        console.log("Drawer opened");
+    } catch (err) {
+        console.error("Drawer open failed:", err);
+    }
+};
+
+function isCashPayment() {
+    try {
+        const pos = frappe.pages["point-of-sale"]?.pos;
+        const payments = pos?.frm?.doc?.payments || [];
+
+        return payments.some(p =>
+            (p.mode_of_payment || "").toLowerCase().includes("cash") &&
+            Number(p.amount || 0) > 0
+        );
+    } catch (e) {
+        console.error("Payment check failed:", e);
+        return false;
+    }
+}
+
+(function attachButtonListener() {
+    const timer = setInterval(() => {
+        const btn = document.querySelector(".submit-order-btn");
+
+        if (!btn || btn.__drawer_hooked) return;
+
+        btn.__drawer_hooked = true;
+
+        btn.addEventListener("click", async () => {
+            try {
+                if (isCashPayment()) {
+                    console.log("Cash detected → opening drawer");
+                    await window.openDrawerOnly();
+                } else {
+                    console.log("Non-cash → drawer not opened");
+                }
+            } catch (e) {
+                console.error("Drawer hook error:", e);
+            }
+        });
+
+        console.log("Complete Order button hooked");
+        clearInterval(timer);
+    }, 1000);
+})();
 
 let order_notification_interval = null;
 let latest_online_order = null;
@@ -808,55 +943,305 @@ document.addEventListener("click", function () {
     sound_allowed = true;
 });
 
-// frappe.realtime.on("new_online_order", function(data) {
+function show_online_order_notification() {
 
-//     console.log("New Online Order:", data);
+    frappe.show_alert({
+        message: `
+            🔔 New Online Order<br>
+            Customer: ${latest_online_order.customer}<br>
+            Total: $${latest_online_order.total}
+        `,
+        indicator: "orange"
+    });
 
-//     // popup message
-//     frappe.show_alert({
-//         message: `🛒 New Online Order from ${data.customer}`,
-//         indicator: "green"
-//     }, 10);
+    let audio = new Audio("/assets/star_bazar/sounds/soundreality-notification-mars-498937.mp3");
+    audio.play().catch(() => {});
+}
 
-//     // 🔔 play notification sound
-//     if (sound_allowed) {
-//         let audio = new Audio("/assets/star_bazar/sounds/soundreality-notification-mars-498937.mp3");
-//         audio.play();
-//     }
+frappe.realtime.on("new_online_order", function(data) {
 
-// });
-    function show_online_order_notification() {
+    console.log("New Online Order:", data);
 
-        frappe.show_alert({
-            message: `
-                🔔 New Online Order<br>
-                Customer: ${latest_online_order.customer}<br>
-                Total: $${latest_online_order.total}
-            `,
-            indicator: "orange"
-        });
+    latest_online_order = data;
 
-        let audio = new Audio("/assets/star_bazar/sounds/soundreality-notification-mars-498937.mp3");
-        audio.play().catch(() => {});
+    show_online_order_notification();
+
+    // Start repeating every 30 seconds
+    if (!order_notification_interval) {
+
+        order_notification_interval = setInterval(() => {
+            show_online_order_notification();
+        }, 60000);
+
     }
 
-    frappe.realtime.on("new_online_order", function(data) {
+});
 
-        console.log("New Online Order:", data);
+// Rest Pay Api
+//     $(document).on('page-change', function () {
+//     if (frappe.get_route()[0] !== 'point-of-sale') return;
 
-        latest_online_order = data;
+//     let wait = setInterval(() => {
+//         if (!window.cur_pos || !window.cur_pos.frm) return;
 
-        show_online_order_notification();
+//         const pos = window.cur_pos;
+//         const completeBtn = document.querySelector('.submit-order-btn');
 
-        // Start repeating every 30 seconds
-        if (!order_notification_interval) {
+//         if (!completeBtn) return;
 
-            order_notification_interval = setInterval(() => {
-                show_online_order_notification();
-            }, 60000);
+//         if (pos.__clover_click_hook_attached) {
+//             clearInterval(wait);
+//             return;
+//         }
 
-        }
+//         clearInterval(wait);
+//         pos.__clover_click_hook_attached = true;
 
-    });
+//         completeBtn.addEventListener('click', async function (e) {
+//             if (pos.__clover_skip_once) {
+//                 pos.__clover_skip_once = false;
+//                 return;
+//             }
+
+//             let doc = pos.frm.doc;
+//             console.log("🔥 Complete Order clicked");
+//             console.log("Payments:", JSON.parse(JSON.stringify(doc.payments || [])));
+
+//             let payment_mode = null;
+
+//             if (doc.payments && doc.payments.length > 0) {
+//                 let active_payment = doc.payments.find(p => flt(p.amount) > 0);
+
+//                 if (!active_payment && doc.payments.length === 1) {
+//                     active_payment = doc.payments[0];
+//                 }
+
+//                 if (!active_payment) {
+//                     active_payment = doc.payments[doc.payments.length - 1];
+//                 }
+
+//                 if (active_payment) {
+//                     payment_mode = active_payment.mode_of_payment;
+//                 }
+//             }
+
+//             console.log("Selected payment mode:", payment_mode);
+
+//             if (payment_mode === "Cash") {
+//                 console.log("Cash selected -> normal flow");
+//                 return;
+//             }
+
+//             if (payment_mode === "Credit Card" || payment_mode === "EBT") {
+//                 e.preventDefault();
+//                 e.stopImmediatePropagation();
+
+//                 frappe.dom.freeze(`Waiting for ${payment_mode} on Clover Flex...`);
+
+//                 try {
+//                     const payload = {
+//                         order_number: doc.name || ("POS-" + Date.now()),
+//                         register_code: "POS1",
+//                         amount: Math.round(flt(doc.grand_total) * 100),
+//                         payment_mode: payment_mode,
+//                         customer: doc.customer,
+//                         items: (doc.items || []).map(row => ({
+//                             item_code: row.item_code,
+//                             item_name: row.item_name,
+//                             qty: row.qty,
+//                             rate: row.rate,
+//                             amount: row.amount
+//                         }))
+//                     };
+
+//                     console.log("Sending to Django:", payload);
+
+//                     const response = await fetch("http://127.0.0.1:8000/api/clover/start-payment/", {
+//                         method: "POST",
+//                         headers: {
+//                             "Content-Type": "application/json"
+//                         },
+//                         body: JSON.stringify(payload)
+//                     });
+
+//                     const result = await response.json();
+
+//                     console.log("Django response:", result);
+
+//                     frappe.dom.unfreeze();
+
+//                     if (response.ok && result.success) {
+//                         frappe.show_alert({
+//                             message: `${payment_mode} payment successful on Flex`,
+//                             indicator: "green"
+//                         });
+
+//                         pos.__clover_skip_once = true;
+//                         setTimeout(() => completeBtn.click(), 100);
+//                     } else {
+//                         frappe.msgprint({
+//                             title: "Payment Failed",
+//                             message: result.error || "Payment was not approved on Clover Flex",
+//                             indicator: "red"
+//                         });
+//                     }
+
+//                 } catch (err) {
+//                     frappe.dom.unfreeze();
+//                     console.error("Django payment error:", err);
+
+//                     frappe.msgprint({
+//                         title: "Connection Error",
+//                         message: "Could not connect to Django Clover payment API.",
+//                         indicator: "red"
+//                     });
+//                 }
+
+//                 return false;
+//             }
+
+//             frappe.msgprint("Please select a valid payment mode before completing the order.");
+//             return false;
+
+//         }, true);
+
+//         console.log("✅ Complete Order click hook attached");
+
+//     }, 500);
+// });
+
+// Local Connection snpd
+//     $(document).on('page-change', function () {
+//     if (frappe.get_route()[0] !== 'point-of-sale') return;
+
+//     let wait = setInterval(() => {
+//         if (!window.cur_pos || !window.cur_pos.frm) return;
+
+//         const pos = window.cur_pos;
+//         const completeBtn = document.querySelector('.submit-order-btn');
+
+//         if (!completeBtn) return;
+
+//         if (pos.__clover_click_hook_attached) {
+//             clearInterval(wait);
+//             return;
+//         }
+
+//         clearInterval(wait);
+//         pos.__clover_click_hook_attached = true;
+
+//         completeBtn.addEventListener('click', async function (e) {
+//             if (pos.__clover_skip_once) {
+//                 pos.__clover_skip_once = false;
+//                 return;
+//             }
+
+//             let doc = pos.frm.doc;
+//             console.log("🔥 Complete Order clicked");
+//             console.log("Payments:", JSON.parse(JSON.stringify(doc.payments || [])));
+
+//             let payment_mode = null;
+
+//             if (doc.payments && doc.payments.length > 0) {
+//                 let active_payment = doc.payments.find(p => flt(p.amount) > 0);
+
+//                 if (!active_payment && doc.payments.length === 1) {
+//                     active_payment = doc.payments[0];
+//                 }
+
+//                 if (!active_payment) {
+//                     active_payment = doc.payments[doc.payments.length - 1];
+//                 }
+
+//                 if (active_payment) {
+//                     payment_mode = active_payment.mode_of_payment;
+//                 }
+//             }
+
+//             console.log("Selected payment mode:", payment_mode);
+
+//             if (payment_mode === "Cash") {
+//                 console.log("Cash selected -> normal flow");
+//                 return;
+//             }
+
+//             if (payment_mode === "Credit Card" || payment_mode === "EBT") {
+//                 e.preventDefault();
+//                 e.stopImmediatePropagation();
+
+//                 frappe.dom.freeze(`Waiting for ${payment_mode} on Clover Flex...`);
+
+//                 try {
+//                     const payload = {
+//                         orderNumber: doc.name || ("POS-" + Date.now()),
+//                         externalId: (doc.name || "POS") + "-" + Date.now(),
+//                         amount: Math.round(flt(doc.grand_total) * 100),
+//                         paymentMode: payment_mode,
+//                         registerCode: "POS1",
+//                         customer: doc.customer,
+//                         items: (doc.items || []).map(row => ({
+//                             item_code: row.item_code,
+//                             item_name: row.item_name,
+//                             qty: row.qty,
+//                             rate: row.rate,
+//                             amount: row.amount
+//                         }))
+//                     };
+
+//                     console.log("Sending to SNPD connector:", payload);
+
+//                     const response = await fetch("http://127.0.0.1:9001/sale", {
+//                         method: "POST",
+//                         headers: {
+//                             "Content-Type": "application/json"
+//                         },
+//                         body: JSON.stringify(payload)
+//                     });
+
+//                     const result = await response.json();
+
+//                     console.log("SNPD connector response:", result);
+
+//                     frappe.dom.unfreeze();
+
+//                     if (response.ok && result.success) {
+//                         frappe.show_alert({
+//                             message: `${payment_mode} payment successful on Flex`,
+//                             indicator: "green"
+//                         });
+
+//                         pos.__clover_skip_once = true;
+//                         setTimeout(() => completeBtn.click(), 100);
+//                     } else {
+//                         frappe.msgprint({
+//                             title: "Payment Failed",
+//                             message: result.error || result.result || "Payment was not approved on Clover Flex",
+//                             indicator: "red"
+//                         });
+//                     }
+
+//                 } catch (err) {
+//                     frappe.dom.unfreeze();
+//                     console.error("SNPD connector error:", err);
+
+//                     frappe.msgprint({
+//                         title: "Connection Error",
+//                         message: "Could not connect to local Clover SNPD connector.",
+//                         indicator: "red"
+//                     });
+//                 }
+
+//                 return false;
+//             }
+
+//             frappe.msgprint("Please select a valid payment mode before completing the order.");
+//             return false;
+
+//         }, true);
+
+//         console.log("✅ Complete Order click hook attached");
+
+//     }, 500);
+// });
 
 

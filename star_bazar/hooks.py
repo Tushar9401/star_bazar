@@ -20,6 +20,11 @@ fixtures = [
         }
     }
 ]
+
+app_include_js = [
+    # "https://cdn.jsdelivr.net/npm/qz-tray/qz-tray.js",
+    "/assets/star_bazar/js/qz-tray.js",
+]
 # Apps
 # ------------------
 
