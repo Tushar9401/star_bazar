@@ -1,6 +1,5 @@
 import frappe
 import base64
-import os
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
@@ -12,11 +11,8 @@ def sign_qz():
         key_path = frappe.get_app_path(
             "star_bazar",
             "private",
-            "private-key.pem"
+            "private.pem"
         )
-
-        if not os.path.exists(key_path):
-            raise Exception(f"Key not found: {key_path}")
 
         with open(key_path, "rb") as f:
             private_key = serialization.load_pem_private_key(
@@ -30,7 +26,6 @@ def sign_qz():
             hashes.SHA512()
         )
 
-        frappe.local.response["type"] = "text/plain"
         return base64.b64encode(signature).decode("utf-8")
 
     except Exception:
