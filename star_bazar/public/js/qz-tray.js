@@ -140,7 +140,7 @@
 
         // ✅ Certificate (MUST match private key)
         qz.security.setCertificatePromise(function (resolve, reject) {
-            fetch("/assets/star_bazar/digital-certificate.txt", {
+            fetch("/assets/star_bazar/certificate.pem", {
                 cache: "no-store"
             })
             .then(res => {
