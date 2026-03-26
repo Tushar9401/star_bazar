@@ -103,86 +103,138 @@
 //     };
 // })();
 
+// (function () {
+
+//     // 🔹 Load QZ Tray library dynamically
+//     function loadQZ() {
+//         return new Promise((resolve, reject) => {
+//             if (window.qz) {
+//                 console.log("QZ already loaded");
+//                 resolve();
+//                 return;
+//             }
+
+//             const script = document.createElement("script");
+//             script.src = "https://cdn.jsdelivr.net/npm/qz-tray/qz-tray.js";
+
+//             script.onload = () => {
+//                 console.log("QZ library loaded");
+//                 resolve();
+//             };
+
+//             script.onerror = (err) => {
+//                 console.error("Failed to load QZ", err);
+//                 reject(err);
+//             };
+
+//             document.head.appendChild(script);
+//         });
+//     }
+
+
+//     // 🔹 Ensure QZ is ready (CERT + SIGNATURE)
+//     window.ensureQZReady = async function () {
+//         await loadQZ();
+
+//         console.log("Initializing QZ security...");
+
+//         // ✅ Certificate (MUST match private key)
+//         qz.security.setCertificatePromise(function (resolve, reject) {
+//             fetch("/assets/star_bazar/certificate.pem", {
+//                 cache: "no-store"
+//             })
+//             .then(res => {
+//                 if (!res.ok) throw new Error("Certificate load failed");
+//                 return res.text();
+//             })
+//             .then(cert => {
+//                 console.log("Certificate loaded");
+//                 resolve(cert);
+//             })
+//             .catch(err => {
+//                 console.error("Certificate error", err);
+//                 reject(err);
+//             });
+//         });
+
+//         // ✅ Required algorithm
+//         qz.security.setSignatureAlgorithm("SHA512");
+
+//         // ✅ Signature from backend
+//         qz.security.setSignaturePromise(function (toSign) {
+//             return function (resolve, reject) {
+
+//                 console.log("SIGN REQUEST:", toSign);
+
+//                 fetch("/api/method/star_bazar.api.sign_qz?request=" + encodeURIComponent(toSign))
+//                 .then(res => {
+//                     if (!res.ok) throw new Error("Sign API failed");
+//                     return res.json();
+//                 })
+//                 .then(data => {
+//                     console.log("SIGN RESPONSE:", data.message);
+//                     resolve(data.message);
+//                 })
+//                 .catch(err => {
+//                     console.error("Signing failed", err);
+//                     reject(err);
+//                 });
+//             };
+//         });
+
+//         console.log("QZ READY");
+//     };
+
+// })();
+
+
 (function () {
 
-    // 🔹 Load QZ Tray library dynamically
     function loadQZ() {
         return new Promise((resolve, reject) => {
-            if (window.qz) {
-                console.log("QZ already loaded");
-                resolve();
-                return;
-            }
-
+            if (window.qz) { resolve(); return; }
             const script = document.createElement("script");
             script.src = "https://cdn.jsdelivr.net/npm/qz-tray/qz-tray.js";
-
-            script.onload = () => {
-                console.log("QZ library loaded");
-                resolve();
-            };
-
-            script.onerror = (err) => {
-                console.error("Failed to load QZ", err);
-                reject(err);
-            };
-
+            script.onload = () => resolve();
+            script.onerror = (err) => reject(err);
             document.head.appendChild(script);
         });
     }
 
-
-    // 🔹 Ensure QZ is ready (CERT + SIGNATURE)
     window.ensureQZReady = async function () {
         await loadQZ();
 
-        console.log("Initializing QZ security...");
-
-        // ✅ Certificate (MUST match private key)
+        // ✅ STEP 1: Override QZ's trusted root with YOUR certificate
         qz.security.setCertificatePromise(function (resolve, reject) {
-            fetch("/assets/star_bazar/certificate.pem", {
-                cache: "no-store"
-            })
-            .then(res => {
-                if (!res.ok) throw new Error("Certificate load failed");
-                return res.text();
-            })
-            .then(cert => {
-                console.log("Certificate loaded");
-                resolve(cert);
-            })
-            .catch(err => {
-                console.error("Certificate error", err);
-                reject(err);
-            });
+            fetch("/assets/star_bazar/certificate.pem", { cache: "no-store" })
+                .then(res => {
+                    if (!res.ok) throw new Error("Failed to load certificate");
+                    return res.text();
+                })
+                .then(cert => resolve(cert))
+                .catch(reject);
         });
 
-        // ✅ Required algorithm
+        // ✅ STEP 2: Must declare algorithm BEFORE setSignaturePromise
         qz.security.setSignatureAlgorithm("SHA512");
 
-        // ✅ Signature from backend
+        // ✅ STEP 3: Sign via your backend (private key stays on server)
         qz.security.setSignaturePromise(function (toSign) {
             return function (resolve, reject) {
-
-                console.log("SIGN REQUEST:", toSign);
-
                 fetch("/api/method/star_bazar.api.sign_qz?request=" + encodeURIComponent(toSign))
-                .then(res => {
-                    if (!res.ok) throw new Error("Sign API failed");
-                    return res.json();
-                })
-                .then(data => {
-                    console.log("SIGN RESPONSE:", data.message);
-                    resolve(data.message);
-                })
-                .catch(err => {
-                    console.error("Signing failed", err);
-                    reject(err);
-                });
+                    .then(res => {
+                        if (!res.ok) throw new Error("Signing API failed");
+                        return res.json();
+                    })
+                    .then(data => {
+                        // Frappe wraps return values in { message: ... }
+                        resolve(data.message);
+                    })
+                    .catch(reject);
             };
         });
 
-        console.log("QZ READY");
+        console.log("QZ security configured ✅");
     };
 
 })();

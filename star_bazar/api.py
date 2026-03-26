@@ -6,7 +6,11 @@ from cryptography.hazmat.primitives.asymmetric import padding
 @frappe.whitelist(allow_guest=True)
 def sign_qz():
     try:
-        data = frappe.form_dict.get("request", "")
+        # QZ sends the request as a query param
+        data = frappe.request.args.get("request", "")
+
+        if not data:
+            frappe.throw("No request data provided")
 
         key_path = frappe.get_app_path(
             "star_bazar",
@@ -21,11 +25,12 @@ def sign_qz():
             )
 
         signature = private_key.sign(
-            data.encode("utf-8"),
-            padding.PKCS1v15(),
-            hashes.SHA512()
+            data.encode("utf-8"),      # sign the raw string
+            padding.PKCS1v15(),        # ✅ must match setSignatureAlgorithm
+            hashes.SHA512()            # ✅ must match SHA512
         )
 
+        # QZ expects a plain base64 string — NOT a JSON object
         return base64.b64encode(signature).decode("utf-8")
 
     except Exception:
