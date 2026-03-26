@@ -77,7 +77,10 @@ window.openDrawerOnly = async function () {
         await window.ensureQZReady();
 
         if (!qz.websocket.isActive()) {
-            await qz.websocket.connect();
+           await qz.websocket.connect({
+                host: "erp.shop-star-bazar.com",  // ✅ your exact domain
+                usingSecure: true                  // ✅ HTTPS = wss://
+            });
         }
 
         const printer = await qz.printers.find("EPSON TM-T20II Receipt");
