@@ -77,9 +77,9 @@ window.openDrawerOnly = async function () {
         await window.ensureQZReady();
 
         if (!qz.websocket.isActive()) {
-           await qz.websocket.connect({
-                host: "erp.shop-star-bazar.com",  // ✅ your exact domain
-                usingSecure: true                  // ✅ HTTPS = wss://
+            await qz.websocket.connect({
+                host: "localhost",    // ✅ always localhost — QZ is on this PC
+                usingSecure: false    // ✅ no SSL needed for localhost
             });
         }
 
