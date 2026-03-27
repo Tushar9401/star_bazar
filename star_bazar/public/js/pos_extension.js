@@ -936,6 +936,36 @@ function attach_pack_hook() {
 
 attach_pack_hook();
 
+function attach_qty_update_hook() {
+    const wait = setInterval(() => {
+        if (!window.cur_pos || !window.cur_pos.frm) return;
+        clearInterval(wait);
+
+        const frm = window.cur_pos.frm;
+
+        // Watch for qty field changes in Item Details popup
+        $(document).on("change keyup", 
+            ".item-details-container input[data-fieldname='qty']", 
+            function () {
+                setTimeout(() => {
+                    const items = frm.doc.items || [];
+                    items.forEach(item => {
+                        // Recalculate amount for each item
+                        item.amount = flt(item.qty) * flt(item.rate);
+                        item.net_amount = flt(item.qty) * flt(item.net_rate || item.rate);
+                    });
+                    frm.refresh_field("items");
+                    frm.script_manager.trigger("calculate_taxes_and_totals");
+                }, 300);
+            }
+        );
+
+        console.log("✅ Qty update hook attached");
+    }, 1000);
+}
+
+attach_qty_update_hook();
+
 // ===============================
 // ONLINE ORDER REALTIME ALERT
 // ===============================
