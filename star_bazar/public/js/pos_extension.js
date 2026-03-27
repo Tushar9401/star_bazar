@@ -115,6 +115,27 @@ function isCashPayment() {
 
 (function attachButtonListener() {
     const timer = setInterval(() => {
+
+        // ✅ Hook CHECKOUT button (cart screen)
+        const checkoutBtn = document.querySelector(".checkout-btn");
+        if (checkoutBtn && !checkoutBtn.__tax_reset_hooked) {
+            checkoutBtn.__tax_reset_hooked = true;
+
+            checkoutBtn.addEventListener("click", async () => {
+                try {
+                    const pos = window.cur_pos;
+                    if (pos && pos.frm && pos.frm.doc.custom_tax_mode !== "Tax") {
+                        await pos.frm.set_value("custom_tax_mode", "Tax");
+                        restoreTaxes(pos);
+                        console.log("✅ Tax mode reset to Tax on Checkout click");
+                    }
+                } catch (e) {
+                    console.error("Tax reset on checkout error:", e);
+                }
+            });
+
+            console.log("✅ Checkout button tax-reset hooked");
+        }
         const btn = document.querySelector(".submit-order-btn");
 
         if (!btn || btn.__drawer_hooked) return;
