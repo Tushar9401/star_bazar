@@ -174,3 +174,85 @@ body[data-route="point-of-sale"] #page-point-of-sale .pos-checkout-btn:hover {
 
 
 
+/* =========================
+   POS LAYOUT WIDTH OVERRIDE
+   Make cart bigger and items smaller
+   ========================= */
+
+body[data-route="point-of-sale"] #page-point-of-sale .point-of-sale-app {
+  display: flex !important;
+  gap: 16px !important;
+  align-items: stretch !important;
+}
+
+body[data-route="point-of-sale"] #page-point-of-sale .items-selector {
+  flex: 0 0 50%!important;
+  max-width: 50%!important;
+  width: 50% !important;
+  min-width: 0 !important;
+}
+
+body[data-route="point-of-sale"] #page-point-of-sale .customer-cart-container {
+  flex: 0 0 50% !important;
+  max-width: 50% !important;
+  width: 50% !important;
+  min-width: 0 !important;
+}
+
+body[data-route="point-of-sale"] #page-point-of-sale .customer-cart-container .cart-container {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+body[data-route="point-of-sale"] #page-point-of-sale .customer-cart-container .customer-section,
+body[data-route="point-of-sale"] #page-point-of-sale .customer-cart-container .cart-container {
+  width: 100% !important;
+}
+/* =========================================
+   ONLY WHEN ITEM DETAILS (3rd column) IS OPEN
+   ========================================= */
+
+/* when item details is visible */
+body[data-route="point-of-sale"] 
+#page-point-of-sale 
+.point-of-sale-app:has(.item-details-container[style*="display: flex"]),
+body[data-route="point-of-sale"] 
+#page-point-of-sale 
+.point-of-sale-app:has(.item-details-container[style*="display: block"]) {
+
+  display: flex !important;
+}
+
+/* adjust widths for 3 columns */
+body[data-route="point-of-sale"] 
+#page-point-of-sale 
+.point-of-sale-app:has(.item-details-container[style*="display: flex"]) .items-selector,
+body[data-route="point-of-sale"] 
+#page-point-of-sale 
+.point-of-sale-app:has(.item-details-container[style*="display: block"]) .items-selector {
+  
+  flex: 0 0 45% !important;
+  max-width: 45% !important;
+}
+
+/* item details */
+body[data-route="point-of-sale"] 
+#page-point-of-sale 
+.item-details-container {
+  
+  flex: 0 0 25% !important;
+  max-width: 25% !important;
+  min-width: 0 !important;
+}
+
+/* cart */
+body[data-route="point-of-sale"] 
+#page-point-of-sale 
+.point-of-sale-app:has(.item-details-container[style*="display: flex"]) .customer-cart-container,
+body[data-route="point-of-sale"] 
+#page-point-of-sale 
+.point-of-sale-app:has(.item-details-container[style*="display: block"]) .customer-cart-container {
+  
+  flex: 0 0 30% !important;
+  max-width: 30% !important;
+}
