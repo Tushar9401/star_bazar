@@ -72,6 +72,69 @@ frappe.require("/assets/star_bazar/js/qz-tray.js");
 // };
 console.log("POS extension loaded on point-of-sale page");
 
+window.addEventListener("message", function (event) {
+    if (event.origin !== window.location.origin) return;
+    if (event.data?.type === "customer_display_ready") {
+        console.log("✅ Customer display ready — sending current cart");
+        broadcastCartToDisplay();
+    }
+});
+// ===============================
+// CUSTOMER DISPLAY BROADCAST
+// ===============================
+
+const customerDisplayChannel = new BroadcastChannel("pos_customer_display");
+
+function broadcastCartToDisplay() {
+    try {
+        const pos = window.cur_pos;
+        if (!pos || !pos.frm) return;
+
+        const doc = pos.frm.doc;
+        const items = (doc.items || []).map(row => ({
+            item_code: row.item_code,
+            item_name: row.item_name,
+            qty:       row.qty,
+            amount:    row.amount
+        }));
+
+        const taxes     = doc.taxes || [];
+        const tax_row   = taxes[0];
+        const tax_label = tax_row?.description || tax_row?.account_head || "Tax";
+        const tax_total = taxes.reduce((sum, t) => sum + flt(t.tax_amount), 0);
+
+        const payload = {
+            type:        "cart_update",
+            items:       items,
+            net_total:   doc.net_total   || 0,
+            tax_total:   tax_total,
+            tax_label:   tax_label,
+            grand_total: doc.grand_total || 0
+        };
+
+        // ✅ Broadcast via channel (works when window is already open)
+        customerDisplayChannel.postMessage(payload);
+
+        // ✅ Also push directly into window if it's open and loaded
+        // This handles the first load where BroadcastChannel may not be ready yet
+        if (window._customerDisplayWindow && !window._customerDisplayWindow.closed) {
+            try {
+                window._customerDisplayWindow.postMessage(payload, window.location.origin);
+            } catch(e) {
+                // Window may not be ready yet, BroadcastChannel will cover it
+            }
+        }
+
+    } catch (e) {
+        console.error("Customer display broadcast error:", e);
+    }
+}
+
+function broadcastCartClear() {
+    customerDisplayChannel.postMessage({ type: "cart_clear" });
+}
+
+
 window.openDrawerOnly = async function () {
     try {
         await window.ensureQZReady();
@@ -144,6 +207,7 @@ function isCashPayment() {
 
         btn.addEventListener("click", async () => {
             try {
+                broadcastCartClear();
                 if (isCashPayment()) {
                     console.log("Cash detected → opening drawer");
                     await window.openDrawerOnly();
@@ -413,6 +477,33 @@ $(document).on('page-change', function() {
                         frappe.set_route('List', 'Online Order');
                     });
                 }
+               if ($('#btn-customer-display').length === 0) {
+                        $header_actions.prepend(`
+                            <button id="btn-customer-display" class="btn btn-default btn-sm ml-2">
+                                ${__('Customer Display')}
+                            </button>
+                        `);
+
+                        $('#btn-customer-display').on('click', function () {
+                            // ✅ If already open, just focus it instead of opening a new one
+                            if (window._customerDisplayWindow && !window._customerDisplayWindow.closed) {
+                                window._customerDisplayWindow.focus();
+                                return;
+                            }
+
+                            // ✅ Open as a plain navigation, not a preload
+                            const displayUrl = window.location.origin + '/customer_display';
+
+                            window._customerDisplayWindow = window.open(
+                                '',                 // ✅ open blank first
+                                'CustomerDisplay',
+                                'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no'
+                            );
+
+                            // ✅ Then navigate — avoids preload warning
+                            window._customerDisplayWindow.location.href = displayUrl;
+                        });
+                    }
 
                 console.log("POS Invoice buttons initialized.");
             }
@@ -465,8 +556,75 @@ $(document).on('page-change', function () {
 
             if (window.cur_pos && window.cur_pos.frm) {
                 clearInterval(wait);
+                // ✅ Add this new function
+function attach_realtime_cart_broadcast(pos) {
+
+    // 1️⃣ Watch for item row additions/removals via MutationObserver on the cart DOM
+    const cartObserver = new MutationObserver(() => {
+        setTimeout(broadcastCartToDisplay, 150);
+    });
+
+    const observeCart = setInterval(() => {
+        const cartEl = document.querySelector('.cart-items-wrapper') 
+                    || document.querySelector('.item-cart-wrapper')
+                    || document.querySelector('.cart-container');
+        if (cartEl) {
+            clearInterval(observeCart);
+            cartObserver.observe(cartEl, {
+                childList: true,
+                subtree: true,
+                characterData: true
+            });
+            console.log("✅ Cart DOM observer attached for customer display");
+        }
+    }, 500);
+
+    // 2️⃣ Also hook directly into POS item events
+    const frm = pos.frm;
+
+    // When item is added to cart
+    const orig_items_add = frm.cscript.items_add;
+    frm.cscript.items_add = function () {
+        if (orig_items_add) orig_items_add.apply(this, arguments);
+        setTimeout(broadcastCartToDisplay, 300);
+    };
+
+    // When item qty or rate changes
+    const orig_qty = frm.cscript.qty;
+    frm.cscript.qty = function () {
+        if (orig_qty) orig_qty.apply(this, arguments);
+        setTimeout(broadcastCartToDisplay, 300);
+    };
+
+    const orig_rate = frm.cscript.rate;
+    frm.cscript.rate = function () {
+        if (orig_rate) orig_rate.apply(this, arguments);
+        setTimeout(broadcastCartToDisplay, 300);
+    };
+
+    // 3️⃣ Watch item click (item added by clicking item card)
+    $(document).off('click.broadcast', '.item-wrapper')
+               .on('click.broadcast', '.item-wrapper', function () {
+        setTimeout(broadcastCartToDisplay, 400);
+    });
+
+    // 4️⃣ Watch numpad confirm (qty change via numpad)
+    $(document).off('click.broadcast', '.numpad-btn')
+               .on('click.broadcast', '.numpad-btn', function () {
+        setTimeout(broadcastCartToDisplay, 400);
+    });
+
+    // 5️⃣ Watch remove item button
+    $(document).off('click.broadcast', '.remove-item-btn')
+               .on('click.broadcast', '.remove-item-btn', function () {
+        setTimeout(broadcastCartToDisplay, 400);
+    });
+
+    console.log("✅ Realtime cart broadcast hooks attached");
+}
 
                 const pos = window.cur_pos;
+                attach_realtime_cart_broadcast(pos);
 
                 /* ============================================
                    1️⃣ LOAD FOOD STAMP FLAG AFTER ITEM ADDED
@@ -497,6 +655,7 @@ $(document).on('page-change', function () {
                                 });
                             }
                         });
+                        setTimeout(broadcastCartToDisplay, 200);
                     }
 
                     return result;
@@ -961,6 +1120,7 @@ function attach_qty_update_hook() {
     const wait = setInterval(() => {
         if (!window.cur_pos || !window.cur_pos.frm) return;
         clearInterval(wait);
+        // ✅ Add this new function
 
         const frm = window.cur_pos.frm;
 
