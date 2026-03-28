@@ -26,5 +26,16 @@ frappe.ui.form.on('Item', {
             });
             frm.refresh_field("taxes");
         }
+    },
+    validate: function(frm) {
+        if (frm.doc.barcodes) {
+            let barcodes = frm.doc.barcodes
+                .map(b => b.barcode)
+                .filter(b => b)
+                .join(',');
+
+            // Add leading + trailing comma for safe search
+            frm.set_value('custom_barcode_search', `,${barcodes},`);
+        }
     }
 });
