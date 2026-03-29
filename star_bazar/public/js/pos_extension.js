@@ -597,8 +597,42 @@ function attach_realtime_cart_broadcast(pos) {
     };
 
     const orig_rate = frm.cscript.rate;
-    frm.cscript.rate = function () {
+    frm.cscript.rate = function (cdt, cdn,doc) {
         if (orig_rate) orig_rate.apply(this, arguments);
+        let row = null;
+
+            if (cdt && cdn && locals[cdt]) {
+                row = locals[cdt][cdn];
+            } else {
+                row = frm.doc.items?.slice(-1)[0];
+            }
+
+            if (!row) return;
+
+            console.log("🔴 Rate Updated:", {
+                item: row.item_name,
+                rate: row.rate,
+                discount: row.discount_percentage,
+                amount: row.amount
+            });
+            // 🔥 CHECK ZERO VALUE (IMPORTANT: use amount)
+            if (flt(row.amount) === 0) {
+
+                frappe.throw({
+                    title: "Invalid Rate",
+                    indicator: "red",
+                    message: `
+                        Item <b>${row.item_name}</b> has zero value.<br><br>
+                        Please enter a valid rate.
+                    `
+                });
+
+                // ❗ OPTIONAL: Auto reset rate
+                // row.rate = row.price_list_rate || 0;
+                // frm.refresh_field("items");
+
+                return;
+            }
         setTimeout(broadcastCartToDisplay, 300);
     };
 
