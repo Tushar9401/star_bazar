@@ -13,7 +13,8 @@
   "incoming_qty",
   "purchase_rate",
   "amount",
-  "sales_rate"
+  "sales_rate",
+  "margin"
  ],
  "fields": [
   {
@@ -58,8 +59,11 @@
   {
    "allow_in_quick_entry": 1,
    "columns": 1,
+   "default": "0",
+   "fetch_from": "item_code.custom_item_purchase_rate",
    "fieldname": "purchase_rate",
    "fieldtype": "Currency",
+   "hidden": 1,
    "in_list_view": 1,
    "label": "Purchase Rate",
    "reqd": 1
@@ -75,8 +79,10 @@
   },
   {
    "columns": 1,
+   "default": "0",
    "fieldname": "amount",
    "fieldtype": "Currency",
+   "hidden": 1,
    "in_list_view": 1,
    "label": "Amount",
    "read_only": 1,
@@ -87,13 +93,20 @@
    "fieldtype": "Link",
    "label": "UOM",
    "options": "UOM"
+  },
+  {
+   "fieldname": "margin",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Margin(%)",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-02-12 01:25:43.091359",
+ "modified": "2026-04-06 05:40:45.893805",
  "modified_by": "Administrator",
  "module": "Star Bazar",
  "name": "Quick Stock Inward Item",

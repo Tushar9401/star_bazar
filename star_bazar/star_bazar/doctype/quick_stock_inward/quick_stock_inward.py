@@ -4,7 +4,20 @@ from frappe.utils import flt, nowdate
 
 
 class QuickStockInward(Document):
+    
+    def validate(self):
+    
+        if not self.items:
+            frappe.throw("At least one item is required")
 
+        for row in self.items:
+            if not row.purchase_rate or row.purchase_rate == 0:
+                frappe.throw(
+                    f"Purchase Rate is missing or zero for Item: <b>{row.item_code}</b> (Row #{row.idx}). "
+                    "Please set the Purchase Rate in Item Master."
+                )
+
+           
     def on_submit(self):
 
         price_list_name = "Standard Selling"
