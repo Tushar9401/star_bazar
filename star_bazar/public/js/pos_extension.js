@@ -1493,3 +1493,321 @@ frappe.realtime.on("new_online_order", function(data) {
 // });
 
 
+// ===============================
+// LOCAL DEVICE API INTEGRATION
+// ===============================
+
+const DEVICE_API = "http://127.0.0.1:5055";
+
+let barcode_poll_started = false;
+let lb_weight_watch_started = false;
+let weighted_rows = new Set();
+
+let barcode_queue = [];
+let barcode_processing = false;
+let last_barcode_seen = null;
+
+// -------------------------------
+// Search field helpers
+// -------------------------------
+function getPOSSearchInput() {
+    return document.querySelector('input.input-with-feedback.form-control[placeholder*="Search by item code"]')
+        || document.querySelector('.search-field input')
+        || document.querySelector('.search-field .control-input input');
+}
+
+function setInputValue(input, value) {
+    const nativeSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value"
+    ).set;
+    nativeSetter.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function waitForSingleVisibleItem(timeout = 1200) {
+    const start = Date.now();
+
+    while (Date.now() - start < timeout) {
+        const visibleItems = Array.from(document.querySelectorAll(".item-wrapper"))
+            .filter(el => el.offsetParent !== null);
+
+        if (visibleItems.length === 1) {
+            return visibleItems[0];
+        }
+
+        await sleep(50);
+    }
+
+    return null;
+}
+
+async function processBarcode(barcode) {
+    try {
+        const input = getPOSSearchInput();
+        if (!input) {
+            console.log("POS search input not found");
+            return;
+        }
+
+        const beforeCount = (window.cur_pos?.frm?.doc?.items || []).length;
+
+        input.focus();
+        setInputValue(input, barcode);
+
+        console.log("Barcode pushed to POS search:", barcode);
+
+        // wait for POS to process barcode by itself
+        const start = Date.now();
+        let itemAdded = false;
+
+        while (Date.now() - start < 1500) {
+            const currentCount = (window.cur_pos?.frm?.doc?.items || []).length;
+
+            if (currentCount > beforeCount) {
+                itemAdded = true;
+                break;
+            }
+
+            await sleep(50);
+        }
+
+        // only if POS did NOT add item automatically, then click single visible result
+        if (!itemAdded) {
+            const itemEl = await waitForSingleVisibleItem(500);
+
+            if (itemEl) {
+                itemEl.click();
+                console.log("Fallback single matching item auto-clicked");
+                await sleep(200);
+            } else {
+                console.log("No single visible item found for barcode:", barcode);
+            }
+        }
+
+        setInputValue(input, "");
+        await sleep(100);
+
+    } catch (err) {
+        console.error("processBarcode error (non-fatal):", err);
+        // Do NOT re-throw — queue must keep draining
+    }
+}
+
+async function processBarcodeQueue() {
+    if (barcode_processing) return;
+    barcode_processing = true;
+
+    try {
+        while (barcode_queue.length > 0) {
+            const barcode = barcode_queue.shift();
+            await processBarcode(barcode);
+        }
+    } catch (err) {
+        console.error("Barcode queue processing error:", err);
+    } finally {
+        barcode_processing = false;
+    }
+}
+
+// -------------------------------
+// Barcode polling
+// -------------------------------
+async function pollBarcodeFromLocalService() {
+    try {
+        const res = await fetch(`${DEVICE_API}/consume_barcode`, {
+            cache: "no-store",
+            signal: AbortSignal.timeout(1000)   // don't hang if port 5055 is down
+        });
+
+        if (!res.ok) {
+            console.log("Barcode API responded with status:", res.status);
+            return;
+        }
+
+        const data = await res.json();
+
+        if (!data || !data.barcode) return;
+
+        // always queue it, even if same barcode comes again
+        barcode_queue.push(data.barcode);
+        processBarcodeQueue();
+
+    } catch (err) {
+        if (err.name === "TimeoutError" || err.name === "AbortError") {
+            // port 5055 unreachable — silent skip, polling continues
+        } else {
+            console.log("Barcode API not reachable:", err.message || err);
+        }
+        // Never re-throw — interval must keep running
+    }
+}
+
+function startBarcodePolling() {
+    if (barcode_poll_started) return;
+    barcode_poll_started = true;
+
+    setInterval(() => {
+        if (frappe.get_route()[0] !== "point-of-sale") return;
+        pollBarcodeFromLocalService();
+    }, 120);
+
+    console.log("Barcode polling started");
+}
+
+// -------------------------------
+// Weight fetch
+// -------------------------------
+async function fetchWeightFromLocalScale() {
+    try {
+        const res = await fetch(`${DEVICE_API}/get_weight`, {
+            cache: "no-store",
+            signal: AbortSignal.timeout(1000)   // don't hang if port 5055 is down
+        });
+
+        if (!res.ok) {
+            console.log("Weight API responded with status:", res.status);
+            return null;
+        }
+
+        const data = await res.json();
+
+        if (!data.success) {
+            console.log("Weight API returned invalid response:", data);
+            return null;
+        }
+
+        return data; // { success, raw, weight_raw, kg, lbs }
+
+    } catch (err) {
+        if (err.name === "TimeoutError" || err.name === "AbortError") {
+            console.log("Weight API timed out — port 5055 may be down");
+        } else {
+            console.log("Weight API not reachable:", err.message || err);
+        }
+        return null;  // caller handles null gracefully
+    }
+}
+
+// -------------------------------
+// Apply weight to LB items
+// -------------------------------
+async function applyWeightToRow(row) {
+    if (!row || !row.name || !row.doctype) return;
+    if (weighted_rows.has(row.name)) return;
+
+    weighted_rows.add(row.name);
+
+    try {
+        const weightData = await fetchWeightFromLocalScale();
+
+        if (!weightData || !weightData.lbs) {
+            weighted_rows.delete(row.name);
+            frappe.show_alert({
+                message: __("Unable to fetch weight from scale"),
+                indicator: "red"
+            });
+            return;
+        }
+
+        const lbs = parseFloat(weightData.lbs || 0);
+        if (!lbs || lbs <= 0) {
+            weighted_rows.delete(row.name);
+            frappe.show_alert({
+                message: __("Invalid weight received from scale"),
+                indicator: "red"
+            });
+            return;
+        }
+
+        await frappe.model.set_value(row.doctype, row.name, "qty", lbs);
+
+        if (window.cur_pos && window.cur_pos.frm) {
+            window.cur_pos.frm.refresh_field("items");
+            window.cur_pos.frm.script_manager.trigger("qty", row.doctype, row.name);
+            window.cur_pos.frm.script_manager.trigger("calculate_taxes_and_totals");
+        }
+
+        frappe.show_alert({
+            message: __("Weight applied: {0} lb", [lbs.toFixed(3)]),
+            indicator: "green"
+        });
+
+        console.log("Weight applied to row:", row.item_code, lbs);
+
+    } catch (err) {
+        weighted_rows.delete(row.name);
+        console.error("Error applying weight (non-fatal):", err);
+        // Do NOT re-throw — watcher interval must keep running
+    }
+}
+
+// -------------------------------
+// Detect new LB item rows
+// -------------------------------
+function startLBWeightWatcher() {
+    if (lb_weight_watch_started) return;
+    lb_weight_watch_started = true;
+
+    let previous_item_count = 0;
+
+    setInterval(async () => {
+        try {
+            if (frappe.get_route()[0] !== "point-of-sale") return;
+            if (!window.cur_pos || !window.cur_pos.frm) return;
+
+            const frm = window.cur_pos.frm;
+            const items = frm.doc.items || [];
+
+            // reset tracking when invoice is new/empty
+            if (!items.length) {
+                previous_item_count = 0;
+                weighted_rows.clear();
+                return;
+            }
+
+            // only react when item count increases
+            if (items.length <= previous_item_count) {
+                previous_item_count = items.length;
+                return;
+            }
+
+            previous_item_count = items.length;
+
+            // latest added row
+            const row = items[items.length - 1];
+            if (!row) return;
+
+            const uom = (row.uom || row.stock_uom || "").toLowerCase().trim();
+
+            if (uom === "lb") {
+                console.log("LB item detected, fetching weight for:", row.item_code);
+                await applyWeightToRow(row);
+            }
+
+        } catch (err) {
+            console.error("LB weight watcher tick error (non-fatal):", err);
+            // Do NOT re-throw — interval must keep running
+        }
+
+    }, 500);
+
+    console.log("LB weight watcher started");
+}
+
+// -------------------------------
+// Init on POS page
+// -------------------------------
+$(document).on("page-change", function () {
+    if (frappe.get_route()[0] !== "point-of-sale") return;
+
+    setTimeout(() => {
+        startBarcodePolling();
+        startLBWeightWatcher();
+    }, 1000);
+});
