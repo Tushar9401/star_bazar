@@ -1621,8 +1621,7 @@ async function processBarcodeQueue() {
 async function pollBarcodeFromLocalService() {
     try {
         const res = await fetch(`${DEVICE_API}/consume_barcode`, {
-            cache: "no-store",
-            signal: AbortSignal.timeout(2000)   // don't hang if port 5055 is down
+            cache: "no-store",  // don't hang if port 5055 is down
         });
 
         if (!res.ok) {
@@ -1666,8 +1665,7 @@ function startBarcodePolling() {
 async function fetchWeightFromLocalScale() {
     try {
         const res = await fetch(`${DEVICE_API}/get_weight`, {
-            cache: "no-store",
-            signal: AbortSignal.timeout(4000)   // don't hang if port 5055 is down
+            cache: "no-store",  // don't hang if port 5055 is down
         });
 
         if (!res.ok) {
