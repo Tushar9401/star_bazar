@@ -132,16 +132,16 @@ function reset_scanner(frm) {
 }
 
 
-function calculate_margin(row) {
-    let purchase = row.purchase_rate || 0;
-    let sales = row.sales_rate || 0;
+// function calculate_margin(row) {
+//     let purchase = row.purchase_rate || 0;
+//     let sales = row.sales_rate || 0;
  
-    if (purchase > 0) {
-        row.margin = flt(((sales - purchase) / purchase) * 100, 2);
-    } else {
-        row.margin = 0;
-    }
-}
+//     if (purchase > 0) {
+//         row.margin = flt(((sales - purchase) / purchase) * 100, 2);
+//     } else {
+//         row.margin = 0;
+//     }
+// }
 // Recalculate amount on child table when incoming_qty or purchase_rate changes
 frappe.ui.form.on('Quick Stock Inward Item', {
     item_code: function(frm, cdt, cdn) {
@@ -154,18 +154,18 @@ frappe.ui.form.on('Quick Stock Inward Item', {
     incoming_qty: function(frm, cdt, cdn) {
         let row = locals[cdt][cdn];
         row.amount = (row.purchase_rate || 0) * (row.incoming_qty || 0);
-        calculate_margin(row);
+        // calculate_margin(row);
         frm.refresh_field('items');
     },
     purchase_rate: function(frm, cdt, cdn) {
         let row = locals[cdt][cdn];
         row.amount = (row.purchase_rate || 0) * (row.incoming_qty || 0);
         frm.refresh_field('items');
-        calculate_margin(row);
+        // calculate_margin(row);
     },
     sales_rate: function(frm, cdt, cdn) {
         let row = locals[cdt][cdn];
-        calculate_margin(row);
+        // calculate_margin(row);
         frm.refresh_field("items");
     }
 });

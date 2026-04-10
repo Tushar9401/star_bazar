@@ -11,11 +11,18 @@
   "section_break_qpnm",
   "item_code",
   "uom",
-  "current_sales_price",
   "column_break_kaos",
   "item_name",
   "current_qty",
-  "new_sales_price"
+  "current_price_section",
+  "current_purchase_rate",
+  "current_margin",
+  "column_break_fquz",
+  "current_sales_price",
+  "sales_price__margin_section",
+  "new_sales_price",
+  "column_break_fwsy",
+  "new_margin"
  ],
  "fields": [
   {
@@ -62,16 +69,54 @@
    "fieldtype": "Column Break"
   },
   {
+   "fetch_from": "item_code.stock_uom",
    "fieldname": "uom",
    "fieldtype": "Data",
    "label": "UOM",
    "read_only": 1
+  },
+  {
+   "fetch_from": "item_code.custom_item_purchase_rate",
+   "fieldname": "current_purchase_rate",
+   "fieldtype": "Currency",
+   "label": "Current Purchase Rate",
+   "read_only": 1
+  },
+  {
+   "fieldname": "current_margin",
+   "fieldtype": "Float",
+   "label": "Current Margin (%)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "new_margin",
+   "fieldtype": "Float",
+   "label": "New Margin (%)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "current_price_section",
+   "fieldtype": "Section Break",
+   "label": "Current Price & Margin"
+  },
+  {
+   "fieldname": "column_break_fquz",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sales_price__margin_section",
+   "fieldtype": "Section Break",
+   "label": "New Sales Price & Margin"
+  },
+  {
+   "fieldname": "column_break_fwsy",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-02-14 20:49:01.032787",
+ "modified": "2026-04-09 21:53:48.835346",
  "modified_by": "Administrator",
  "module": "Star Bazar",
  "name": "Price Update",

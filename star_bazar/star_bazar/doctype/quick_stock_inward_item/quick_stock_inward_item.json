@@ -13,8 +13,7 @@
   "incoming_qty",
   "purchase_rate",
   "amount",
-  "sales_rate",
-  "margin"
+  "sales_rate"
  ],
  "fields": [
   {
@@ -93,20 +92,13 @@
    "fieldtype": "Link",
    "label": "UOM",
    "options": "UOM"
-  },
-  {
-   "fieldname": "margin",
-   "fieldtype": "Float",
-   "in_list_view": 1,
-   "label": "Margin(%)",
-   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-04-06 05:40:45.893805",
+ "modified": "2026-04-09 21:18:16.753482",
  "modified_by": "Administrator",
  "module": "Star Bazar",
  "name": "Quick Stock Inward Item",

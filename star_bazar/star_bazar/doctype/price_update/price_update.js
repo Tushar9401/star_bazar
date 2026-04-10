@@ -54,6 +54,12 @@ frappe.ui.form.on("Price Update", {
                 });
             }
         });
+    },
+    item_code:function(frm) {
+        resolve_warehouse_and_fetch(frm);
+    },
+     new_sales_price: function(frm) {
+        calculate_new_margin(frm);
     }
 });
 
@@ -129,6 +135,35 @@ function fetch_stock_and_price(frm, warehouse) {
                 "current_sales_price",
                 price.message ? price.message.price_list_rate : 0
             );
+            // ✅ Calculate current margin after fetching
+            calculate_current_margin(frm);
         }
     });
+}
+
+// ✅ Calculate Current Margin
+function calculate_current_margin(frm) {
+
+    let purchase = flt(frm.doc.current_purchase_rate);
+    let selling = flt(frm.doc.current_sales_price);
+
+    if (!purchase) return;
+
+    let margin = ((selling - purchase) / purchase) * 100;
+
+    frm.set_value("current_margin", margin.toFixed(2));
+}
+
+
+// ✅ Calculate New Margin
+function calculate_new_margin(frm) {
+
+    let purchase = flt(frm.doc.current_purchase_rate);
+    let new_price = flt(frm.doc.new_sales_price);
+
+    if (!purchase || !new_price) return;
+
+    let margin = ((new_price - purchase) / purchase) * 100;
+
+    frm.set_value("new_margin", margin.toFixed(2));
 }
