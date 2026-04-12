@@ -20,6 +20,7 @@
   "column_break_fquz",
   "current_sales_price",
   "sales_price__margin_section",
+  "new_purchase_price",
   "new_sales_price",
   "column_break_fwsy",
   "new_margin"
@@ -106,17 +107,22 @@
   {
    "fieldname": "sales_price__margin_section",
    "fieldtype": "Section Break",
-   "label": "New Sales Price & Margin"
+   "label": "New Price & Margin"
   },
   {
    "fieldname": "column_break_fwsy",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "new_purchase_price",
+   "fieldtype": "Currency",
+   "label": "New Purchase Rate"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-09 21:53:48.835346",
+ "modified": "2026-04-12 00:07:08.908978",
  "modified_by": "Administrator",
  "module": "Star Bazar",
  "name": "Price Update",

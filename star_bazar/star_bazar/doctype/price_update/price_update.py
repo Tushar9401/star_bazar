@@ -47,3 +47,13 @@ class PriceUpdate(Document):
             })
 
             new_ip.insert(ignore_permissions=True)
+        if self.new_purchase_price and self.item_code:
+    
+            item_doc = frappe.get_doc("Item", self.item_code)
+            
+            current_rate = flt(item_doc.custom_item_purchase_rate)
+            new_rate = flt(self.new_purchase_price)
+
+            if current_rate != new_rate:
+                item_doc.custom_item_purchase_rate = new_rate
+                item_doc.save(ignore_permissions=True)

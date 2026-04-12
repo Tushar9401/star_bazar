@@ -60,6 +60,9 @@ frappe.ui.form.on("Price Update", {
     },
      new_sales_price: function(frm) {
         calculate_new_margin(frm);
+    },
+    new_purchase_price: function(frm) {
+        calculate_new_margin(frm);
     }
 });
 
@@ -158,7 +161,7 @@ function calculate_current_margin(frm) {
 // ✅ Calculate New Margin
 function calculate_new_margin(frm) {
 
-    let purchase = flt(frm.doc.current_purchase_rate);
+    let purchase = flt(frm.doc.new_purchase_price || frm.doc.current_purchase_rate);
     let new_price = flt(frm.doc.new_sales_price);
 
     if (!purchase || !new_price) return;
