@@ -372,6 +372,20 @@ function create_hold_invoice() {
     });
 }
 
+function updatePOSTotals() {
+    if (!window.cur_pos || !window.cur_pos.frm) return;
+
+    let frm = window.cur_pos.frm;
+
+    // Recalculate totals
+    frm.script_manager.trigger("calculate_taxes_and_totals");
+
+    // Refresh UI
+    frm.refresh_fields();
+
+    console.log("✅ POS totals updated");
+}
+
 // =====================
 // POS BUTTON ADDITION
 // =====================
@@ -477,6 +491,17 @@ $(document).on('page-change', function() {
                         frappe.set_route('List', 'Online Order');
                     });
                 }
+                if ($('#btn-update-total').length === 0) {
+                    $header_actions.prepend(`
+                        <button id="btn-update-total" class="btn btn-default btn-sm ml-2">
+                            ${__('Update Total')}
+                        </button>
+                    `);
+
+                    $('#btn-update-total').on('click', function () {
+                        updatePOSTotals();
+                    });
+}
                if ($('#btn-customer-display').length === 0) {
                         $header_actions.prepend(`
                             <button id="btn-customer-display" class="btn btn-default btn-sm ml-2">
