@@ -1549,48 +1549,39 @@ async function waitForSingleVisibleItem(timeout = 1200) {
 
 async function processBarcode(barcode) {
     const input = getPOSSearchInput();
-    if (!input) {
-        console.log("POS search input not found");
+    if (!input) return;
+
+    const frm = window.cur_pos?.frm;
+    if (!frm) return;
+
+    const items = frm.doc.items || [];
+
+    // 🔍 Check if item already exists by barcode
+    let existingRow = items.find(row => row.barcode === barcode);
+
+    if (existingRow) {
+        // ✅ Increment qty instead of adding new row
+        let newQty = (existingRow.qty || 0) + 1;
+
+        await frappe.model.set_value(
+            existingRow.doctype,
+            existingRow.name,
+            "qty",
+            newQty
+        );
+
+        frm.refresh_field("items");
+        frm.script_manager.trigger("qty", existingRow.doctype, existingRow.name);
+
+        console.log("Updated qty for existing item:", barcode);
         return;
     }
 
-    const beforeCount = (window.cur_pos?.frm?.doc?.items || []).length;
-
+    // ❌ If not found → normal add
     input.focus();
     setInputValue(input, barcode);
 
-    console.log("Barcode pushed to POS search:", barcode);
-
-    // wait for POS to process barcode by itself
-    const start = Date.now();
-    let itemAdded = false;
-
-    while (Date.now() - start < 1500) {
-        const currentCount = (window.cur_pos?.frm?.doc?.items || []).length;
-
-        if (currentCount > beforeCount) {
-            itemAdded = true;
-            break;
-        }
-
-        await sleep(50);
-    }
-
-    // only if POS did NOT add item automatically, then click single visible result
-    if (!itemAdded) {
-        const itemEl = await waitForSingleVisibleItem(500);
-
-        if (itemEl) {
-            itemEl.click();
-            console.log("Fallback single matching item auto-clicked");
-            await sleep(200);
-        } else {
-            console.log("No single visible item found for barcode:", barcode);
-        }
-    }
-
-    setInputValue(input, "");
-    await sleep(100);
+    console.log("New item added:", barcode);
 }
 
 async function processBarcodeQueue() {
