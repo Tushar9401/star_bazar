@@ -82,7 +82,7 @@ window.addEventListener("message", function (event) {
 // ===============================
 // CUSTOMER DISPLAY BROADCAST
 // ===============================
-
+let _suppress_search_input = false;
 const customerDisplayChannel = new BroadcastChannel("pos_customer_display");
 
 function broadcastCartToDisplay() {
@@ -628,6 +628,64 @@ function attach_realtime_cart_broadcast(pos) {
         if (orig_items_add) orig_items_add.apply(this, arguments);
         setTimeout(broadcastCartToDisplay, 300);
     };
+
+    // ✅ AGGRESSIVE: Monitor for General Items and Non-Food Items with qty > 1 and auto-split them
+    const generalItemSplitInterval = setInterval(() => {
+        if (!frm || !frm.doc || !frm.doc.items) return;
+
+        const items = frm.doc.items;
+        let splitted = false;
+
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            
+            // Check if it's a General Item (SPECIAL_* code or item_name = "General Item")
+            const isGeneralItem = (item.item_code && item.item_code.startsWith("SPECIAL_"))
+                               || item.item_name === "GROCERY";
+            
+            // Check if it's a Non-Food Item (item_code or item_name contains "NON FOOD")
+            const itemCodeUpper = (item.item_code || "").toUpperCase();
+            const itemNameUpper = (item.item_name || "").toUpperCase();
+            const isNonFoodItem = itemCodeUpper.includes("NON FOOD") || itemNameUpper.includes("NON FOOD");
+
+            if ((isGeneralItem || isNonFoodItem) && flt(item.qty) > 1) {
+                console.log("🔄 AUTO-SPLIT:", isGeneralItem ? "GROCERY" : "Non-Food Item", "with qty", item.qty, "→ Splitting into qty=1 rows");
+
+                const original_qty = flt(item.qty);
+                item.qty = 1;
+
+                // Add new rows for each remaining qty
+                for (let j = 1; j < original_qty; j++) {
+                    _special_item_counter++;
+                    const new_row = frappe.model.add_child(frm.doc, "items");
+                    
+                    if (isGeneralItem) {
+                        // For General Items: use Generic Item name
+                        new_row.item_code = `GROCERY`;
+                        new_row.item_name = "GROCERY";
+                    } else {
+                        // For Non-Food Items: keep original item_code and item_name
+                        new_row.item_code = item.item_code;
+                        new_row.item_name = item.item_name;
+                    }
+                    
+                    new_row.qty = 1;
+                    new_row.uom = item.uom;
+                    new_row.rate = item.rate || 0;
+                    new_row.amount = item.rate || 0;
+                }
+
+                splitted = true;
+                break; // Process one split per interval cycle
+            }
+        }
+
+        if (splitted) {
+            frm.refresh_field("items");
+            frm.script_manager.trigger("calculate_taxes_and_totals");
+            console.log("✅ Split complete — refreshed cart");
+        }
+    }, 500); // Check every 500ms
 
     // When item qty or rate changes
     const orig_qty = frm.cscript.qty;
@@ -1856,52 +1914,97 @@ async function waitForSingleVisibleItem(timeout = 1200) {
     return null;
 }
 
+// Patch the search input handler to respect the flag
+// Add this inside your $(document).on('page-change') or attach_realtime_cart_broadcast
+$(document).on("input.barcode_suppress", ".search-field input", function(e) {
+    if (_suppress_search_input) {
+        e.stopImmediatePropagation();
+        setInputValue(this, "");
+        return false;
+    }
+});
+let _barcode_processing_lock = false;
+
 async function processBarcode(barcode) {
-    const input = getPOSSearchInput();
-    if (!input) {
-        console.log("POS search input not found");
+    const isAlwaysNewLine = ["2000", "2014"].includes(String(barcode).trim());
+
+    // ✅ Hard lock — if already processing, ignore completely
+    if (_barcode_processing_lock) {
+        console.log("🔒 Barcode locked, ignoring:", barcode);
         return;
     }
+    _barcode_processing_lock = true;
 
-    const beforeCount = (window.cur_pos?.frm?.doc?.items || []).length;
+    try {
+        if (isAlwaysNewLine) {
+            const pos = window.cur_pos;
+            if (!pos || !pos.frm) return;
 
-    input.focus();
-    setInputValue(input, barcode);
+            const frm = pos.frm;
 
-    console.log("Barcode pushed to POS search:", barcode);
+            // ✅ Kill search input immediately
+            _suppress_search_input = true;
+            const input = getPOSSearchInput();
+            if (input) {
+                input.blur();
+                setInputValue(input, "");
+            }
 
-    // wait for POS to process barcode by itself
-    const start = Date.now();
-    let itemAdded = false;
+            await sleep(250);
 
-    while (Date.now() - start < 1500) {
-        const currentCount = (window.cur_pos?.frm?.doc?.items || []).length;
+            const new_row = frappe.model.add_child(frm.doc, "items");
+            new_row.item_code = "General Item";
+            new_row.qty = 1;
 
-        if (currentCount > beforeCount) {
-            itemAdded = true;
-            break;
+            await frm.script_manager.trigger("item_code", new_row.doctype, new_row.name);
+
+            frm.refresh_field("items");
+            frm.script_manager.trigger("calculate_taxes_and_totals");
+
+            await sleep(300);
+            _suppress_search_input = false;
+
+            console.log("✅ New line added for barcode:", barcode);
+            return;
         }
 
-        await sleep(50);
-    }
+        // --- normal barcode flow ---
+        const input = getPOSSearchInput();
+        if (!input) return;
 
-    // only if POS did NOT add item automatically, then click single visible result
-    if (!itemAdded) {
-        const itemEl = await waitForSingleVisibleItem(500);
+        const beforeCount = (window.cur_pos?.frm?.doc?.items || []).length;
 
-        if (itemEl) {
-            itemEl.click();
-            console.log("Fallback single matching item auto-clicked");
-            await sleep(200);
-        } else {
-            console.log("No single visible item found for barcode:", barcode);
+        input.focus();
+        setInputValue(input, barcode);
+
+        const start = Date.now();
+        let itemAdded = false;
+
+        while (Date.now() - start < 1500) {
+            const currentCount = (window.cur_pos?.frm?.doc?.items || []).length;
+            if (currentCount > beforeCount) {
+                itemAdded = true;
+                break;
+            }
+            await sleep(50);
         }
-    }
 
-    setInputValue(input, "");
-    await sleep(100);
+        if (!itemAdded) {
+            const itemEl = await waitForSingleVisibleItem(500);
+            if (itemEl) {
+                itemEl.click();
+                await sleep(200);
+            }
+        }
+
+        setInputValue(input, "");
+        await sleep(100);
+
+    } finally {
+        // ✅ Always release lock
+        _barcode_processing_lock = false;
+    }
 }
-
 async function processBarcodeQueue() {
     if (barcode_processing) return;
     barcode_processing = true;
@@ -1921,19 +2024,35 @@ async function processBarcodeQueue() {
 // -------------------------------
 // Barcode polling
 // -------------------------------
-// -------------------------------
-// Barcode polling
-// -------------------------------
 async function pollBarcodeFromLocalService() {
+    // ✅ Don't even poll if currently processing
+    if (_barcode_processing_lock) return;
+
     try {
         const res = await fetch(`${DEVICE_API}/consume_barcode`, { cache: "no-store" });
         const data = await res.json();
 
         if (!data || !data.barcode) return;
+        const barcode = String(data.barcode).trim();
+        const isAlwaysNewLine = ["2000", "2014"].includes(barcode);
 
-        // always queue it, even if same barcode comes again
-        barcode_queue.push(data.barcode);
-        processBarcodeQueue();
+        console.log("📦 Polled barcode:", barcode, "isAlwaysNewLine:", isAlwaysNewLine);
+
+        if (!isAlwaysNewLine && barcode === last_barcode_seen) return;
+
+        if (!isAlwaysNewLine) {
+            last_barcode_seen = barcode;
+        } else {
+            last_barcode_seen = null;
+        }
+
+        // ✅ Don't use queue for always-new-line — process directly and block
+        if (isAlwaysNewLine) {
+            await processBarcode(barcode);
+        } else {
+            barcode_queue.push(barcode);
+            processBarcodeQueue();
+        }
 
     } catch (err) {
         console.log("Barcode API not reachable:", err);
@@ -2070,6 +2189,57 @@ function startLBWeightWatcher() {
 
     console.log("LB weight watcher started");
 }
+
+// ===============================
+// PATCH POS TO ALWAYS ADD NEW LINE FOR 2000 & 2014
+// ===============================
+// Track the current search value to know what barcode was just searched
+let _current_search_value = "";
+let _special_item_counter = 0;
+
+$(document).on("input", ".search-field input", function() {
+    _current_search_value = $(this).val().trim();
+});
+
+// ✅ Intercept item selection for 2000/2014: add unique item to prevent merging
+$(document).on("click", ".pos .list-item-container", function(e) {
+    const isAlwaysNewLine = ["2000", "2014"].includes(_current_search_value);
+    
+    if (!isAlwaysNewLine) return; // Let normal POS behavior handle other items
+    
+    // Prevent default POS behavior for 2000/2014
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    
+    if (window.cur_pos && window.cur_pos.frm) {
+        const frm = window.cur_pos.frm;
+        
+        // Generate a unique item code so each row is separate
+        _special_item_counter++;
+        const unique_item_code = `SPECIAL_${_current_search_value}_${_special_item_counter}`;
+        
+        // Manually add a new row with unique item code
+        const new_row = frappe.model.add_child(frm.doc, "items");
+        new_row.item_code = unique_item_code;
+        new_row.item_name = "General Item";
+        new_row.qty = 1;
+        new_row.rate = 0;
+        
+        // Trigger item_code handler to set defaults if needed
+        frm.script_manager.trigger("item_code", new_row.doctype, new_row.name);
+        
+        frm.refresh_field("items");
+        frm.script_manager.trigger("calculate_taxes_and_totals");
+        
+        // Clear search
+        $(".search-field input").val("").focus();
+        _current_search_value = "";
+        
+        console.log("✅ New line added for barcode with unique code:", unique_item_code);
+    }
+    
+    return false;
+});
 
 // -------------------------------
 // Init on POS page
