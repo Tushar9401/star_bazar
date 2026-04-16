@@ -501,7 +501,22 @@ $(document).on('page-change', function() {
                     $('#btn-update-total').on('click', function () {
                         updatePOSTotals();
                     });
-}
+                if ($('#btn-open-drawer').length === 0) {
+                        $header_actions.prepend(`
+                            <button id="btn-open-drawer" class="btn btn-default btn-sm ml-2">
+                                ${__('Open Drawer')}
+                            </button>
+                        `);
+
+                        $('#btn-open-drawer').on('click', async function () {
+                            try {
+                                await window.openDrawerOnly();
+                            } catch (e) {
+                                console.error("Drawer open error:", e);
+                            }
+                        });
+                    }
+                }
                if ($('#btn-customer-display').length === 0) {
                         $header_actions.prepend(`
                             <button id="btn-customer-display" class="btn btn-default btn-sm ml-2">
