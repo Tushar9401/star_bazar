@@ -1874,7 +1874,6 @@ let weighted_rows = new Set();
 
 let barcode_queue = [];
 let barcode_processing = false;
-let last_barcode_seen = null;
 
 // -------------------------------
 // Search field helpers
@@ -2039,14 +2038,6 @@ async function pollBarcodeFromLocalService() {
         const isAlwaysNewLine = ["2000", "2014"].includes(barcode);
 
         console.log("📦 Polled barcode:", barcode, "isAlwaysNewLine:", isAlwaysNewLine);
-
-        if (!isAlwaysNewLine && barcode === last_barcode_seen) return;
-
-        if (!isAlwaysNewLine) {
-            last_barcode_seen = barcode;
-        } else {
-            last_barcode_seen = null;
-        }
 
         // ✅ Don't use queue for always-new-line — process directly and block
         if (isAlwaysNewLine) {
