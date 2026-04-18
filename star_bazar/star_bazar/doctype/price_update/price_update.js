@@ -152,7 +152,7 @@ function calculate_current_margin(frm) {
 
     if (!purchase) return;
 
-    let margin = ((selling - purchase) / purchase) * 100;
+    let margin = ((selling - purchase) / selling) * 100;
 
     frm.set_value("current_margin", margin.toFixed(2));
 }
@@ -166,7 +166,7 @@ function calculate_new_margin(frm) {
 
     if (!purchase || !new_price) return;
 
-    let margin = ((new_price - purchase) / purchase) * 100;
+    let margin = ((new_price - purchase) / new_price) * 100;
 
     frm.set_value("new_margin", margin.toFixed(2));
 }
