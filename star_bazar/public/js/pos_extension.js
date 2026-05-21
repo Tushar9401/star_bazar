@@ -402,7 +402,7 @@ $(document).on('page-change', function() {
                 // Add Stock Inward Button
                 if ($('#btn-stock-inward').length === 0) {
                     $header_actions.prepend(`
-                        <button id="btn-stock-inward" class="btn btn-default btn-sm ml-2">
+                        <button id="btn-stock-inward" class="btn btn-default btn-sm ml-2" style="background:#E8F5FE;color:#0C3A6A;border:1px solid #60A8DE;">
                             ${__('Stock Inward')}
                         </button>
                     `);
@@ -415,7 +415,7 @@ $(document).on('page-change', function() {
                 // Add Price Update Button
                 if ($('#btn-price-update').length === 0) {
                     $header_actions.prepend(`
-                        <button id="btn-price-update" class="btn btn-default btn-sm ml-2">
+                        <button id="btn-price-update" class="btn btn-default btn-sm ml-2" style="background:#F1EFE8;color:#444441;border:1px solid #B4B2A9;">
                             ${__('Price Update')}
                         </button>
                     `);
@@ -427,7 +427,7 @@ $(document).on('page-change', function() {
 
                 if ($('#btn-view-invoice').length === 0) {
                     $header_actions.prepend(`
-                        <button id="btn-view-invoice" class="btn btn-default btn-sm ml-2">
+                        <button id="btn-view-invoice" class="btn btn-default btn-sm ml-2" style="background:#FCEBEB;color:#791F1F;border:1px solid #F09595;">
                             ${__('View Invoice')}
                         </button>
                     `);
@@ -439,7 +439,7 @@ $(document).on('page-change', function() {
 
                 if ($('#btn-hold-invoice').length === 0) {
                     $header_actions.prepend(`
-                        <button id="btn-hold-invoice" class="btn btn-default btn-sm ml-2">
+                        <button id="btn-hold-invoice" class="btn btn-default btn-sm ml-2" style="background:#E1F5EE;color:#085041;border:1px solid #5DCAA5;">
                             ${__('Hold Invoice')}
                         </button>
                     `);
@@ -454,7 +454,7 @@ $(document).on('page-change', function() {
 
                 if ($('#btn-view-hold-invoice').length === 0) {
                     $header_actions.prepend(`
-                        <button id="btn-view-hold-invoice" class="btn btn-default btn-sm ml-2">
+                        <button id="btn-view-hold-invoice" class="btn btn-default btn-sm ml-2" style="background:#FAECE7;color:#712B13;border:1px solid #F0997B;">
                             ${__('View Hold Invoice')}
                         </button>
                     `);
@@ -466,7 +466,7 @@ $(document).on('page-change', function() {
 
                 if ($('#btn-item-scheme').length === 0) {
                     $header_actions.prepend(`
-                        <button id="btn-item-scheme" class="btn btn-default btn-sm ml-2">
+                        <button id="btn-item-scheme" class="btn btn-default btn-sm ml-2" style="background:#EEEDFE;color:#3C3489;border:1px solid #AFA9EC;">
                             ${__('Item Scheme')}
                         </button>
                     `);
@@ -478,7 +478,7 @@ $(document).on('page-change', function() {
 
                 if ($('#btn-view-online-order').length === 0) {
                     $header_actions.prepend(`
-                        <button id="btn-view-online-order" class="btn btn-default btn-sm ml-2">
+                        <button id="btn-view-online-order" class="btn btn-default btn-sm ml-2" style="background:#FBEAF0;color:#72243E;border:1px solid #ED93B1;">
                             ${__('View Online Order')}
                         </button>
                     `);
@@ -493,7 +493,7 @@ $(document).on('page-change', function() {
                 }
                 if ($('#btn-update-total').length === 0) {
                     $header_actions.prepend(`
-                        <button id="btn-update-total" class="btn btn-default btn-sm ml-2">
+                        <button id="btn-update-total" class="btn btn-default btn-sm ml-2" style="background:#EAF3DE;color:#27500A;border:1px solid #97C459;">
                             ${__('Update Total')}
                         </button>
                     `);
@@ -503,7 +503,7 @@ $(document).on('page-change', function() {
                     });
                 if ($('#btn-open-drawer').length === 0) {
                         $header_actions.prepend(`
-                            <button id="btn-open-drawer" class="btn btn-default btn-sm ml-2">
+                            <button id="btn-open-drawer" class="btn btn-default btn-sm ml-2" style="background:#FAEEDA;color:#633806;border:1px solid #EF9F27;">
                                 ${__('Open Drawer')}
                             </button>
                         `);
@@ -519,7 +519,7 @@ $(document).on('page-change', function() {
                 }
                if ($('#btn-customer-display').length === 0) {
                         $header_actions.prepend(`
-                            <button id="btn-customer-display" class="btn btn-default btn-sm ml-2">
+                            <button id="btn-customer-display" class="btn btn-default btn-sm ml-2" style="background:#E6F1FB;color:#0C447C;border:1px solid #85B7EB;">
                                 ${__('Customer Display')}
                             </button>
                         `);

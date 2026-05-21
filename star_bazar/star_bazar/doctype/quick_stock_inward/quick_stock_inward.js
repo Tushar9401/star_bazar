@@ -85,6 +85,7 @@ function handle_item_row(frm, barcode, item_code, item_name, uom) {
         existing_row.amount = (existing_row.purchase_rate || 0) * (existing_row.incoming_qty || 0);
 
         fetch_stock(frm, existing_row);
+        fetch_sales_rate(frm, existing_row);
 
     } else {
 
@@ -101,6 +102,7 @@ function handle_item_row(frm, barcode, item_code, item_name, uom) {
     row.amount = (row.purchase_rate || 0) * (row.incoming_qty || 0);
 
         fetch_stock(frm, row);
+        fetch_sales_rate(frm, row);
     }
 
     frm.refresh_field("items");
@@ -126,6 +128,25 @@ function fetch_stock(frm, row) {
         }
     });
 }
+
+function fetch_sales_rate(frm, row) {
+
+    if (!row.item_code) return;
+
+    frappe.call({
+        method: "star_bazar.star_bazar.doctype.quick_stock_inward.quick_stock_inward.get_current_sales_rate",
+        args: {
+            item_code: row.item_code,
+            posting_date: frm.doc.posting_date
+        },
+
+        callback: function(r) {
+            row.sales_rate = r.message || 0;
+            frm.refresh_field("items");
+        }
+    });
+}
+
 function reset_scanner(frm) {
     frm.set_value("scan_barcode", "");
     frm.fields_dict.scan_barcode.$input.focus();
@@ -145,11 +166,11 @@ function reset_scanner(frm) {
 // Recalculate amount on child table when incoming_qty or purchase_rate changes
 frappe.ui.form.on('Quick Stock Inward Item', {
     item_code: function(frm, cdt, cdn) {
-        // when item_code is entered in the child row, fetch current stock for selected warehouse
         let row = locals[cdt][cdn];
         if (!row) return;
-        // fetch_stock will check for warehouse and populate row.current_stock
+
         fetch_stock(frm, row);
+        fetch_sales_rate(frm, row);
     },
     incoming_qty: function(frm, cdt, cdn) {
         let row = locals[cdt][cdn];
@@ -169,5 +190,3 @@ frappe.ui.form.on('Quick Stock Inward Item', {
         frm.refresh_field("items");
     }
 });
-
-
