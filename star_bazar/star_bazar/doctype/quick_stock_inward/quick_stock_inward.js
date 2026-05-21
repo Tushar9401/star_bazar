@@ -134,14 +134,21 @@ function fetch_sales_rate(frm, row) {
     if (!row.item_code) return;
 
     frappe.call({
-        method: "star_bazar.star_bazar.doctype.quick_stock_inward.quick_stock_inward.get_current_sales_rate",
+        method: "frappe.client.get_value",
         args: {
-            item_code: row.item_code,
-            posting_date: frm.doc.posting_date
+            doctype: "Item Price",
+            filters: {
+                item_code: row.item_code,
+                price_list: "Standard Selling",
+                selling: 1
+            },
+            fieldname: ["price_list_rate"],
+            order_by: "creation desc",
+            limit_page_length: 1
         },
 
         callback: function(r) {
-            row.sales_rate = r.message || 0;
+            row.sales_rate = r.message ? r.message.price_list_rate : 0;
             frm.refresh_field("items");
         }
     });

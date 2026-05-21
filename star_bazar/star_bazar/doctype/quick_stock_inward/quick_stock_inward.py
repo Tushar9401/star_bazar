@@ -131,29 +131,3 @@ class QuickStockInward(Document):
 
         for ip in item_prices:
             frappe.delete_doc("Item Price", ip.name, ignore_permissions=True)
-
-
-@frappe.whitelist()
-def get_current_sales_rate(item_code, posting_date=None):
-    if not item_code:
-        return 0
-
-    posting_date = posting_date or nowdate()
-
-    price = frappe.db.sql(
-        """
-        select price_list_rate
-        from `tabItem Price`
-        where item_code = %(item_code)s
-            and price_list = 'Standard Selling'
-            and selling = 1
-            and (valid_from is null or valid_from <= %(posting_date)s)
-            and (valid_upto is null or valid_upto >= %(posting_date)s)
-        order by ifnull(valid_from, '1900-01-01') desc, creation desc
-        limit 1
-        """,
-        {"item_code": item_code, "posting_date": posting_date},
-        as_dict=True,
-    )
-
-    return flt(price[0].price_list_rate) if price else 0
