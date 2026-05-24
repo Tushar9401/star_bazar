@@ -1,10 +1,12 @@
 import frappe
 from frappe.model.document import Document
+from frappe.utils import flt
 
 class ItemScheme(Document):
 
     def validate(self):
         self.validate_single_scheme()
+        self.validate_purchase_rate()
 
     def after_insert(self):
         if self.active == 1:
@@ -35,14 +37,31 @@ class ItemScheme(Document):
                 f"Only one scheme can be applied at a time."
             )
 
-    def apply_scheme(self):
+    def validate_purchase_rate(self):
 
-        if not frappe.db.exists("Item", self.scheme_name):
-            purchase_rate = frappe.db.get_value(
+        if not self.active or not self.item:
+            return
+
+        purchase_rate = flt(frappe.db.get_value(
             "Item",
             self.item,
             "custom_item_purchase_rate"
-            ) or 0
+        ))
+
+        if purchase_rate <= 0:
+            frappe.throw(
+                f"Item Purchase Rate is missing or zero for Item: <b>{self.item}</b>. "
+                "Please set the Item Purchase Rate in Item Master before creating an active scheme."
+            )
+
+    def apply_scheme(self):
+
+        if not frappe.db.exists("Item", self.scheme_name):
+            purchase_rate = flt(frappe.db.get_value(
+                "Item",
+                self.item,
+                "custom_item_purchase_rate"
+            )) * flt(self.qty)
 
             item_doc = frappe.get_doc({
                 "doctype": "Item",
