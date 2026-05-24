@@ -386,6 +386,36 @@ function updatePOSTotals() {
     console.log("✅ POS totals updated");
 }
 
+function openNewPOSOrder() {
+    if (frappe.get_route()[0] !== "point-of-sale") {
+        frappe.set_route("point-of-sale");
+        return;
+    }
+
+    const summary_new_order_btn = $(".past-order-summary:visible .new-btn:visible, .summary-btns:visible .new-btn:visible").first();
+    if (summary_new_order_btn.length) {
+        summary_new_order_btn.trigger("click");
+        return;
+    }
+
+    const pos = window.cur_pos;
+    if (pos && typeof pos.make_new_invoice === "function") {
+        frappe.run_serially([
+            () => frappe.dom.freeze(),
+            () => pos.make_new_invoice(),
+            () => pos.toggle_components && pos.toggle_components(true),
+            () => pos.item_selector && pos.item_selector.toggle_component(true),
+            () => pos.cart && pos.cart.enable_customer_selection && pos.cart.enable_customer_selection(),
+            () => pos.recent_order_list && pos.recent_order_list.toggle_component(false),
+            () => pos.order_summary && pos.order_summary.toggle_component(false),
+            () => frappe.dom.unfreeze(),
+        ]);
+        return;
+    }
+
+    frappe.set_route("point-of-sale");
+}
+
 // =====================
 // POS BUTTON ADDITION
 // =====================
@@ -409,6 +439,18 @@ $(document).on('page-change', function() {
 
                     $('#btn-stock-inward').on('click', function() {
                         frappe.set_route('List', 'Quick Stock Inward');
+                    });
+                }
+
+                if ($('#btn-new-order-top').length === 0) {
+                    $('#btn-stock-inward').after(`
+                        <button id="btn-new-order-top" class="btn btn-default btn-sm ml-2" style="background:#E6F4EA;color:#0B5A2A;border:1px solid #79C48D;">
+                            ${__('New Order')}
+                        </button>
+                    `);
+
+                    $('#btn-new-order-top').on('click', function() {
+                        openNewPOSOrder();
                     });
                 }
 
