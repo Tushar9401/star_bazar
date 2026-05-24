@@ -38,6 +38,11 @@ class ItemScheme(Document):
     def apply_scheme(self):
 
         if not frappe.db.exists("Item", self.scheme_name):
+            purchase_rate = frappe.db.get_value(
+            "Item",
+            self.item,
+            "custom_item_purchase_rate"
+            ) or 0
 
             item_doc = frappe.get_doc({
                 "doctype": "Item",
@@ -45,6 +50,7 @@ class ItemScheme(Document):
                 "item_name": self.scheme_name,
                 "is_stock_item": 0,
                 "standard_rate": self.selling_price,
+                "custom_item_purchase_rate": purchase_rate
                 "item_group": "Scheme"
             })
 
