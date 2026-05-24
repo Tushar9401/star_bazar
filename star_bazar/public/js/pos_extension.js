@@ -1944,6 +1944,22 @@ function isLikelyBarcodeSearch(value) {
     return /^\d{4,}$/.test(String(value || "").trim());
 }
 
+function getCartChangeSnapshot() {
+    const items = window.cur_pos?.frm?.doc?.items || [];
+    return JSON.stringify(items.map(row => ({
+        name: row.name,
+        item_code: row.item_code,
+        barcode: row.barcode,
+        qty: row.qty,
+        rate: row.rate,
+        amount: row.amount
+    })));
+}
+
+function hasCartChanged(snapshot) {
+    return getCartChangeSnapshot() !== snapshot;
+}
+
 let _last_not_found_barcode = "";
 
 function showProductNotFound(barcode) {
@@ -2033,7 +2049,7 @@ async function processBarcode(barcode) {
         const input = getPOSSearchInput();
         if (!input) return;
 
-        const beforeCount = (window.cur_pos?.frm?.doc?.items || []).length;
+        const beforeSnapshot = getCartChangeSnapshot();
 
         input.focus();
         setInputValue(input, barcode);
@@ -2042,8 +2058,7 @@ async function processBarcode(barcode) {
         let itemAdded = false;
 
         while (Date.now() - start < 1500) {
-            const currentCount = (window.cur_pos?.frm?.doc?.items || []).length;
-            if (currentCount > beforeCount) {
+            if (hasCartChanged(beforeSnapshot)) {
                 itemAdded = true;
                 break;
             }
@@ -2055,7 +2070,7 @@ async function processBarcode(barcode) {
             if (itemEl) {
                 itemEl.click();
                 await sleep(200);
-                itemAdded = (window.cur_pos?.frm?.doc?.items || []).length > beforeCount;
+                itemAdded = hasCartChanged(beforeSnapshot);
             }
         }
 
@@ -2270,7 +2285,7 @@ $(document).on("input", ".search-field input", function() {
     }
 
     const searched_barcode = _current_search_value;
-    const before_count = (window.cur_pos?.frm?.doc?.items || []).length;
+    const before_snapshot = getCartChangeSnapshot();
 
     _manual_barcode_not_found_timer = setTimeout(() => {
         if (frappe.get_route()[0] !== "point-of-sale") return;
@@ -2279,11 +2294,10 @@ $(document).on("input", ".search-field input", function() {
         const current_value = String(input?.value || "").trim();
         if (current_value !== searched_barcode) return;
 
-        const current_count = (window.cur_pos?.frm?.doc?.items || []).length;
         const visible_items = Array.from(document.querySelectorAll(".item-wrapper, .pos .list-item-container"))
             .filter(el => el.offsetParent !== null);
 
-        if (current_count <= before_count && visible_items.length === 0) {
+        if (!hasCartChanged(before_snapshot) && visible_items.length === 0) {
             showProductNotFound(searched_barcode);
         }
     }, 900);
