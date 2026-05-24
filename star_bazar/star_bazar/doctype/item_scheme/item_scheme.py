@@ -56,13 +56,13 @@ class ItemScheme(Document):
 
     def apply_scheme(self):
 
-        if not frappe.db.exists("Item", self.scheme_name):
-            purchase_rate = flt(frappe.db.get_value(
-                "Item",
-                self.item,
-                "custom_item_purchase_rate"
-            )) * flt(self.qty)
+        purchase_rate = flt(frappe.db.get_value(
+            "Item",
+            self.item,
+            "custom_item_purchase_rate"
+        )) * flt(self.qty)
 
+        if not frappe.db.exists("Item", self.scheme_name):
             item_doc = frappe.get_doc({
                 "doctype": "Item",
                 "item_code": self.scheme_name,
@@ -74,6 +74,16 @@ class ItemScheme(Document):
             })
 
             item_doc.insert(ignore_permissions=True)
+        else:
+            frappe.db.set_value(
+                "Item",
+                self.scheme_name,
+                {
+                    "standard_rate": self.selling_price,
+                    "custom_item_purchase_rate": purchase_rate,
+                    "item_group": "Scheme"
+                }
+            )
 
         if self.item and not frappe.db.exists("Product Bundle", {"new_item_code": self.scheme_name}):
 
