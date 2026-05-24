@@ -50,7 +50,7 @@ class ItemScheme(Document):
                 "item_name": self.scheme_name,
                 "is_stock_item": 0,
                 "standard_rate": self.selling_price,
-                "custom_item_purchase_rate": purchase_rate
+                "custom_item_purchase_rate": purchase_rate,
                 "item_group": "Scheme"
             })
 
