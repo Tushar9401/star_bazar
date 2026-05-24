@@ -1898,6 +1898,24 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function isLikelyBarcodeSearch(value) {
+    return /^\d{4,}$/.test(String(value || "").trim());
+}
+
+let _last_not_found_barcode = "";
+
+function showProductNotFound(barcode) {
+    barcode = String(barcode || "").trim();
+    if (!barcode || _last_not_found_barcode === barcode) return;
+
+    _last_not_found_barcode = barcode;
+    frappe.msgprint({
+        title: __("Product Not Found"),
+        message: __("No product found for barcode: {0}", [barcode]),
+        indicator: "red"
+    });
+}
+
 async function waitForSingleVisibleItem(timeout = 1200) {
     const start = Date.now();
 
@@ -1995,7 +2013,12 @@ async function processBarcode(barcode) {
             if (itemEl) {
                 itemEl.click();
                 await sleep(200);
+                itemAdded = (window.cur_pos?.frm?.doc?.items || []).length > beforeCount;
             }
+        }
+
+        if (!itemAdded) {
+            showProductNotFound(barcode);
         }
 
         setInputValue(input, "");
@@ -2189,9 +2212,39 @@ function startLBWeightWatcher() {
 // Track the current search value to know what barcode was just searched
 let _current_search_value = "";
 let _special_item_counter = 0;
+let _manual_barcode_not_found_timer = null;
 
 $(document).on("input", ".search-field input", function() {
     _current_search_value = $(this).val().trim();
+    clearTimeout(_manual_barcode_not_found_timer);
+
+    if (_barcode_processing_lock) return;
+
+    if (!isLikelyBarcodeSearch(_current_search_value)) {
+        if (!_current_search_value) {
+            _last_not_found_barcode = "";
+        }
+        return;
+    }
+
+    const searched_barcode = _current_search_value;
+    const before_count = (window.cur_pos?.frm?.doc?.items || []).length;
+
+    _manual_barcode_not_found_timer = setTimeout(() => {
+        if (frappe.get_route()[0] !== "point-of-sale") return;
+
+        const input = getPOSSearchInput();
+        const current_value = String(input?.value || "").trim();
+        if (current_value !== searched_barcode) return;
+
+        const current_count = (window.cur_pos?.frm?.doc?.items || []).length;
+        const visible_items = Array.from(document.querySelectorAll(".item-wrapper, .pos .list-item-container"))
+            .filter(el => el.offsetParent !== null);
+
+        if (current_count <= before_count && visible_items.length === 0) {
+            showProductNotFound(searched_barcode);
+        }
+    }, 900);
 });
 
 // ✅ Intercept item selection for 2000/2014: add unique item to prevent merging
