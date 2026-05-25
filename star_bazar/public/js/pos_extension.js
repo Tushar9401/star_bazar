@@ -1963,15 +1963,15 @@ function hasCartChanged(snapshot) {
 let _last_not_found_barcode = "";
 
 function showProductNotFound(barcode) {
-    barcode = String(barcode || "").trim();
-    if (!barcode || _last_not_found_barcode === barcode) return;
+    // barcode = String(barcode || "").trim();
+    // if (!barcode || _last_not_found_barcode === barcode) return;
 
-    _last_not_found_barcode = barcode;
-    frappe.msgprint({
-        title: __("Product Not Found"),
-        message: __("No product found for barcode: {0}", [barcode]),
-        indicator: "red"
-    });
+    // _last_not_found_barcode = barcode;
+    // frappe.msgprint({
+    //     title: __("Product Not Found"),
+    //     message: __("No product found for barcode: {0}", [barcode]),
+    //     indicator: "red"
+    // });
 }
 
 async function waitForSingleVisibleItem(timeout = 1200) {
