@@ -1961,17 +1961,25 @@ function hasCartChanged(snapshot) {
 }
 
 let _last_not_found_barcode = "";
+let _manual_barcode_not_found_timer = null;
+
+function clearBarcodeNotFoundTimer() {
+    if (_manual_barcode_not_found_timer) {
+        clearTimeout(_manual_barcode_not_found_timer);
+        _manual_barcode_not_found_timer = null;
+    }
+}
 
 function showProductNotFound(barcode) {
-    // barcode = String(barcode || "").trim();
-    // if (!barcode || _last_not_found_barcode === barcode) return;
+    barcode = String(barcode || "").trim();
+    if (!barcode) return;
 
-    // _last_not_found_barcode = barcode;
-    // frappe.msgprint({
-    //     title: __("Product Not Found"),
-    //     message: __("No product found for barcode: {0}", [barcode]),
-    //     indicator: "red"
-    // });
+    _last_not_found_barcode = barcode;
+    frappe.msgprint({
+        title: __("Product Not Found"),
+        message: __("No product found for barcode: {0}", [barcode]),
+        indicator: "red"
+    });
 }
 
 async function waitForSingleVisibleItem(timeout = 1200) {
@@ -2004,6 +2012,7 @@ let _barcode_processing_lock = false;
 
 async function processBarcode(barcode) {
     const isAlwaysNewLine = ["2000", "2014"].includes(String(barcode).trim());
+    clearBarcodeNotFoundTimer();
 
     // ✅ Hard lock — if already processing, ignore completely
     if (_barcode_processing_lock) {
@@ -2057,7 +2066,7 @@ async function processBarcode(barcode) {
         const start = Date.now();
         let itemAdded = false;
 
-        while (Date.now() - start < 1500) {
+        while (Date.now() - start < 3000) {
             if (hasCartChanged(beforeSnapshot)) {
                 itemAdded = true;
                 break;
@@ -2069,7 +2078,7 @@ async function processBarcode(barcode) {
             const itemEl = await waitForSingleVisibleItem(500);
             if (itemEl) {
                 itemEl.click();
-                await sleep(200);
+                await sleep(800);
                 itemAdded = hasCartChanged(beforeSnapshot);
             }
         }
@@ -2079,9 +2088,11 @@ async function processBarcode(barcode) {
         }
 
         setInputValue(input, "");
+        clearBarcodeNotFoundTimer();
         await sleep(100);
 
     } finally {
+        clearBarcodeNotFoundTimer();
         // ✅ Always release lock
         _barcode_processing_lock = false;
     }
@@ -2269,11 +2280,11 @@ function startLBWeightWatcher() {
 // Track the current search value to know what barcode was just searched
 let _current_search_value = "";
 let _special_item_counter = 0;
-let _manual_barcode_not_found_timer = null;
 
-$(document).on("input", ".search-field input", function() {
+$(document).off("input.barcode_not_found", ".search-field input");
+$(document).on("input.barcode_not_found", ".search-field input", function() {
     _current_search_value = $(this).val().trim();
-    clearTimeout(_manual_barcode_not_found_timer);
+    clearBarcodeNotFoundTimer();
 
     if (_barcode_processing_lock) return;
 
@@ -2288,6 +2299,7 @@ $(document).on("input", ".search-field input", function() {
     const before_snapshot = getCartChangeSnapshot();
 
     _manual_barcode_not_found_timer = setTimeout(() => {
+        _manual_barcode_not_found_timer = null;
         if (frappe.get_route()[0] !== "point-of-sale") return;
 
         const input = getPOSSearchInput();
@@ -2300,7 +2312,7 @@ $(document).on("input", ".search-field input", function() {
         if (!hasCartChanged(before_snapshot) && visible_items.length === 0) {
             showProductNotFound(searched_barcode);
         }
-    }, 900);
+    }, 1800);
 });
 
 // ✅ Intercept item selection for 2000/2014: add unique item to prevent merging
