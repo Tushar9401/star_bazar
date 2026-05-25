@@ -186,11 +186,12 @@
     function renderCart(data) {
         const tbody = document.getElementById("cart-body");
         const items = data.items || [];
+        const displayItems = items.slice().reverse();
 
         if (items.length === 0) {
             tbody.innerHTML = `<tr><td colspan="4" class="empty-msg">No items yet...</td></tr>`;
         } else {
-            tbody.innerHTML = items.map((item, i) => `
+            tbody.innerHTML = displayItems.map((item, i) => `
                 <tr>
                     <td>${i + 1}</td>
                     <td>${item.item_name || item.item_code}</td>
