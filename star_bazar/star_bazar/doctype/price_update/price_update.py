@@ -57,3 +57,34 @@ class PriceUpdate(Document):
             if current_rate != new_rate:
                 item_doc.custom_item_purchase_rate = new_rate
                 item_doc.save(ignore_permissions=True)
+
+
+@frappe.whitelist()
+def get_latest_selling_price(item_code):
+    if not item_code:
+        return 0
+
+    price = frappe.db.sql(
+        """
+        SELECT price_list_rate
+        FROM `tabItem Price`
+        WHERE
+            item_code = %(item_code)s
+            AND price_list = 'Standard Selling'
+            AND selling = 1
+            AND IFNULL(valid_from, '1900-01-01') <= %(today)s
+            AND IFNULL(valid_upto, '2999-12-31') >= %(today)s
+        ORDER BY
+            IFNULL(valid_from, '1900-01-01') DESC,
+            modified DESC,
+            creation DESC
+        LIMIT 1
+        """,
+        {
+            "item_code": item_code,
+            "today": nowdate(),
+        },
+        as_dict=True,
+    )
+
+    return flt(price[0].price_list_rate) if price else 0
