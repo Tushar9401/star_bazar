@@ -120,15 +120,27 @@ function fetch_stock_and_price(frm, warehouse) {
 
     // ✅ Current Sales Rate
     frappe.call({
-        method: "star_bazar.star_bazar.doctype.price_update.price_update.get_latest_selling_price",
+        method: "frappe.client.get_list",
         args: {
-            item_code: item_code
+            doctype: "Item Price",
+            filters: {
+                item_code: item_code,
+                price_list: "Standard Selling",
+                selling: 1
+            },
+            fields: ["price_list_rate"],
+            order_by: "valid_from desc, modified desc, creation desc",
+            limit_page_length: 1
         },
 
         callback: function(price) {
+            let latest_price = price.message && price.message.length
+                ? price.message[0].price_list_rate
+                : 0;
+
             frm.set_value(
                 "current_sales_price",
-                price.message || 0
+                latest_price
             );
             // ✅ Calculate current margin after fetching
             calculate_current_margin(frm);
