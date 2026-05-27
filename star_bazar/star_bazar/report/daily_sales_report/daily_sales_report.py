@@ -103,7 +103,13 @@ def get_data(filters):
         f"""
         SELECT
             pip.mode_of_payment,
-            SUM(pip.amount)     AS total_amount
+            SUM(
+                CASE
+                    WHEN pip.account = pi.account_for_change_amount
+                    THEN pip.amount - IFNULL(pi.change_amount, 0)
+                    ELSE pip.amount
+                END
+            ) AS total_amount
         FROM
             `tabSales Invoice Payment` pip
         INNER JOIN
