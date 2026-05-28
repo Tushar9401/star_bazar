@@ -9,7 +9,7 @@ app_license = "mit"
 
 scheduler_events = {
     "daily": [
-        "star_bazar.cron.item_scheme.expire_item_schemes"
+        "star_bazar.star_bazar.cron.item_scheme.expire_item_schemes"
     ]
 }
 fixtures = [
@@ -285,4 +285,3 @@ doc_events = {
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
-
