@@ -79,26 +79,16 @@ class ItemScheme(Document):
                 "Item",
                 self.scheme_name,
                 {
+                    "disabled": 0,
                     "standard_rate": self.selling_price,
                     "custom_item_purchase_rate": purchase_rate,
                     "item_group": "Scheme"
                 }
             )
 
-        if self.item and not frappe.db.exists("Product Bundle", {"new_item_code": self.scheme_name}):
-
-            bundle_doc = frappe.get_doc({
-                "doctype": "Product Bundle",
-                "new_item_code": self.scheme_name,
-                "items": [{
-                    "item_code": self.item,
-                    "qty": self.qty
-                }]
-            })
-
-            bundle_doc.insert(ignore_permissions=True)
-
         if self.item:
+            self.apply_product_bundle()
+
             frappe.db.set_value(
                 "Item",
                 self.item,
@@ -107,6 +97,33 @@ class ItemScheme(Document):
                     "custom_bundle_qty": self.qty
                 }
             )
+
+    def apply_product_bundle(self):
+
+        bundle_name = frappe.db.get_value(
+            "Product Bundle",
+            {"new_item_code": self.scheme_name},
+            "name"
+        )
+
+        bundle_items = [{
+            "item_code": self.item,
+            "qty": self.qty
+        }]
+
+        if bundle_name:
+            bundle_doc = frappe.get_doc("Product Bundle", bundle_name)
+            bundle_doc.disabled = 0
+            bundle_doc.set("items", bundle_items)
+            bundle_doc.save(ignore_permissions=True)
+        else:
+            bundle_doc = frappe.get_doc({
+                "doctype": "Product Bundle",
+                "new_item_code": self.scheme_name,
+                "items": bundle_items
+            })
+
+            bundle_doc.insert(ignore_permissions=True)
 
     def revert_scheme(self):
 
@@ -117,7 +134,12 @@ class ItemScheme(Document):
         )
 
         if bundle_name:
-            frappe.delete_doc("Product Bundle", bundle_name, ignore_permissions=True)
+            frappe.db.set_value(
+                "Product Bundle",
+                bundle_name,
+                "disabled",
+                1
+            )
 
         if self.item:
             frappe.db.set_value(
@@ -136,4 +158,3 @@ class ItemScheme(Document):
                 "disabled",
                 1
             )
-            frappe.delete_doc("Item", self.scheme_name, ignore_permissions=True)
