@@ -1,4 +1,7 @@
+
 frappe.require("/assets/star_bazar/js/qz-tray.js");
+
+
 
 // async function openDrawerThenPrint() {
 //     try {
@@ -1267,8 +1270,26 @@ async function handle_pack_conversion() {
     }
 }
 
-function attach_pack_hook() {
+function move_latest_item_to_top() {
+    const frm = window.cur_pos?.frm;
+    if (!frm || !frm.doc.items || frm.doc.items.length <= 1) return;
 
+    const items = frm.doc.items;
+    const latest = items.pop();
+
+    items.unshift(latest);
+
+    items.forEach((row, i) => {
+        row.idx = i + 1;
+    });
+
+    frm.refresh_field("items");
+    frm.script_manager.trigger("calculate_taxes_and_totals");
+
+    console.log("✅ Latest item moved to top");
+}
+
+function attach_pack_hook() {
     const wait_for_pos = setInterval(() => {
 
         if (!window.cur_pos || !window.cur_pos.frm) return;
@@ -1278,14 +1299,20 @@ function attach_pack_hook() {
         let frm = window.cur_pos.frm;
 
         frm.cscript.items_add = function() {
-            setTimeout(() => handle_pack_conversion(), 200);
+            setTimeout(async () => {
+                await handle_pack_conversion();
+                move_latest_item_to_top();
+            }, 50);
         };
 
         frm.cscript.qty = function() {
-            setTimeout(() => handle_pack_conversion(), 200);
+            setTimeout(async () => {
+                await handle_pack_conversion();
+                move_latest_item_to_top();
+            }, 500);
         };
 
-        console.log("Pack conversion hook attached ✅");
+        console.log("Pack conversion + latest item top hook attached ✅");
 
     }, 1000);
 }
@@ -2366,3 +2393,44 @@ $(document).on("page-change", function () {
         startLBWeightWatcher();
     }, 1000);
 });
+
+// ===============================
+// SHOW NEWEST CART ITEM ON TOP
+// ===============================
+
+// function attachCartOrderFix() {
+
+//     const observer = new MutationObserver(() => {
+
+//         const cart = document.querySelector(
+//             '.cart-items, .cart-item-container, .items-container'
+//         );
+
+//         if (!cart) return;
+
+//         const rows = Array.from(cart.children);
+
+//         if (rows.length > 1) {
+//             cart.prepend(rows[rows.length - 1]);
+//         }
+//     });
+
+//     observer.observe(document.body, {
+//         childList: true,
+//         subtree: true
+//     });
+
+//     console.log("✅ POS cart order hook attached");
+// }
+
+// $(document).on("page-change", function () {
+//     if (frappe.get_route()[0] !== "point-of-sale") {
+//         return;
+//     }
+
+//     setTimeout(() => {
+//         attachCartOrderFix();
+//     }, 1500);
+// });
+
+
