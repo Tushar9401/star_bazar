@@ -1,6 +1,7 @@
 import frappe
 from frappe.model.document import Document
 from frappe.utils import flt, nowdate
+from star_bazar.item import update_item_standard_rate
 
 
 class QuickStockInward(Document):
@@ -63,6 +64,8 @@ class QuickStockInward(Document):
                 })
 
                 new_ip.insert(ignore_permissions=True)
+
+            update_item_standard_rate(row.item_code, sales_rate)
 
         # ---------------------------------------------------
         # STOCK ENTRY PREPARATION

@@ -55,3 +55,22 @@ def update_item_price_from_standard_rate(doc, method=None):
             "reference": doc.name,
         }
     ).insert(ignore_permissions=True)
+
+
+def update_item_standard_rate(item_code, standard_rate):
+    if not item_code or not standard_rate:
+        return
+
+    standard_rate = flt(standard_rate)
+    current_rate = flt(frappe.db.get_value("Item", item_code, "standard_rate"))
+
+    if current_rate == standard_rate:
+        return
+
+    frappe.db.set_value(
+        "Item",
+        item_code,
+        "standard_rate",
+        standard_rate,
+        update_modified=False,
+    )

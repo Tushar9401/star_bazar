@@ -1,6 +1,7 @@
 import frappe
 from frappe.model.document import Document
 from frappe.utils import flt, nowdate
+from star_bazar.item import update_item_standard_rate
 
 
 class PriceUpdate(Document):
@@ -47,6 +48,9 @@ class PriceUpdate(Document):
             })
 
             new_ip.insert(ignore_permissions=True)
+
+        update_item_standard_rate(self.item_code, sales_rate)
+
         if self.new_purchase_price and self.item_code:
     
             item_doc = frappe.get_doc("Item", self.item_code)
