@@ -6,6 +6,9 @@ def update_item_price_from_standard_rate(doc, method=None):
     if not doc.item_code or not doc.standard_rate:
         return
 
+    if not doc.is_new() and not doc.has_value_changed("standard_rate"):
+        return
+
     price_list_name = "Standard Selling"
     standard_rate = flt(doc.standard_rate)
     currency = frappe.db.get_default("currency") or "USD"
