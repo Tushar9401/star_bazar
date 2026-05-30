@@ -170,6 +170,9 @@ doctype_js = {
 # 	}
 # }
 doc_events = {
+    "Item": {
+        "on_update": "star_bazar.item.update_item_price_from_standard_rate"
+    },
     "Hold Invoice": {
         # "after_insert": "star_bazar.hold.update_hold_stock",
         "on_update": "star_bazar.hold.update_hold_stock",
