@@ -1270,54 +1270,167 @@ async function handle_pack_conversion() {
     }
 }
 
-function move_latest_item_to_top() {
+// let current_top_item_name = null;
+// function move_item_to_top_by_name(item_name) {
+//     const frm = window.cur_pos?.frm;
+//     if (!frm || !frm.doc.items || frm.doc.items.length <= 1 || !item_name) return;
+
+//     const items = frm.doc.items;
+//     const index = items.findIndex(row => row.name === item_name);
+
+//     if (index > 0) {
+//         const row = items.splice(index, 1)[0];
+//         current_top_item_name = row.name;
+
+//         items.unshift(row);
+
+//         items.forEach((item, i) => {
+//             item.idx = i + 1;
+//         });
+
+//         frm.refresh_field("items");
+//         console.log("✅ Item moved to top:", row.item_name);
+//     }
+// }
+
+// function move_latest_item_to_top() {
+//     const frm = window.cur_pos?.frm;
+//     if (!frm || !frm.doc.items || frm.doc.items.length <= 1) return;
+
+//     const latest = frm.doc.items[frm.doc.items.length - 1];
+//     current_top_item_name = latest.name;
+
+//     move_item_to_top_by_name(latest.name);
+// }
+
+// function keep_current_top_item_on_top() {
+//     const frm = window.cur_pos?.frm;
+//     if (!frm || !frm.doc.items || !current_top_item_name) return;
+
+//     const items = frm.doc.items;
+//     const index = items.findIndex(row => row.name === current_top_item_name);
+
+//     if (index > 0) {
+//         const row = items.splice(index, 1)[0];
+//         items.unshift(row);
+
+//         items.forEach((item, i) => {
+//             item.idx = i + 1;
+//         });
+
+//         frm.refresh_field("items");
+
+//         console.log("✅ Top item kept on top after qty edit");
+//     }
+// }
+
+// function attach_pack_hook() {
+//     const wait_for_pos = setInterval(() => {
+
+//         if (!window.cur_pos || !window.cur_pos.frm) return;
+
+//         clearInterval(wait_for_pos);
+
+//         let frm = window.cur_pos.frm;
+
+//     frm.cscript.items_add = function(cdt, cdn) {
+//     setTimeout(async () => {
+//         await handle_pack_conversion();
+
+//         const frm = window.cur_pos?.frm;
+//         if (!frm || !frm.doc.items) return;
+
+//         let added_row = null;
+
+//         if (cdt && cdn) {
+//             added_row = frm.doc.items.find(row => row.doctype === cdt && row.name === cdn);
+//         }
+
+//         if (!added_row) {
+//             added_row = frm.doc.items[frm.doc.items.length - 1];
+//         }
+
+//         if (added_row) {
+//             current_top_item_name = added_row.name;
+//             move_item_to_top_by_name(added_row.name);
+//         }
+
+//         frm.script_manager.trigger("calculate_taxes_and_totals");
+//     }, 80);
+// };
+
+//         frm.cscript.qty = function() {
+//             setTimeout(async () => {
+//                 await handle_pack_conversion();
+//                 keep_current_top_item_on_top();
+//                 frm.script_manager.trigger("calculate_taxes_and_totals");
+//             }, 50);
+//         };
+
+
+
+//         console.log("Pack conversion + latest item top hook attached ✅");
+
+//     }, 1000);
+// }
+
+// attach_pack_hook();
+
+let current_top_item_name = null;
+let last_item_names = [];
+
+function move_item_to_top_by_name(item_name) {
     const frm = window.cur_pos?.frm;
-    if (!frm || !frm.doc.items || frm.doc.items.length <= 1) return;
+    if (!frm || !frm.doc.items || !item_name) return;
 
     const items = frm.doc.items;
-    const latest = items.pop();
+    const index = items.findIndex(row => row.name === item_name);
 
-    items.unshift(latest);
+    if (index > 0) {
+        const row = items.splice(index, 1)[0];
+        items.unshift(row);
 
-    items.forEach((row, i) => {
-        row.idx = i + 1;
-    });
+        items.forEach((item, i) => {
+            item.idx = i + 1;
+        });
 
-    frm.refresh_field("items");
-    frm.script_manager.trigger("calculate_taxes_and_totals");
+        current_top_item_name = row.name;
+        frm.refresh_field("items");
 
-    console.log("✅ Latest item moved to top");
+        console.log("✅ Item kept on top:", row.item_name);
+    }
 }
 
-function attach_pack_hook() {
-    const wait_for_pos = setInterval(() => {
+function start_cart_top_watcher() {
+    setInterval(() => {
+        if (frappe.get_route()[0] !== "point-of-sale") return;
 
-        if (!window.cur_pos || !window.cur_pos.frm) return;
+        const frm = window.cur_pos?.frm;
+        if (!frm || !frm.doc.items) return;
 
-        clearInterval(wait_for_pos);
+        const items = frm.doc.items;
+        const names = items.map(row => row.name);
 
-        let frm = window.cur_pos.frm;
+        // New item added
+        if (names.length > last_item_names.length) {
+            const new_name = names.find(name => !last_item_names.includes(name));
 
-        frm.cscript.items_add = function() {
-            setTimeout(async () => {
-                await handle_pack_conversion();
-                move_latest_item_to_top();
-            }, 50);
-        };
+            if (new_name) {
+                current_top_item_name = new_name;
+                move_item_to_top_by_name(new_name);
+            }
+        } else {
+            // Qty edit / refresh happened
+            if (current_top_item_name) {
+                move_item_to_top_by_name(current_top_item_name);
+            }
+        }
 
-        frm.cscript.qty = function() {
-            setTimeout(async () => {
-                await handle_pack_conversion();
-                move_latest_item_to_top();
-            }, 500);
-        };
-
-        console.log("Pack conversion + latest item top hook attached ✅");
-
-    }, 1000);
+        last_item_names = (frm.doc.items || []).map(row => row.name);
+    }, 100);
 }
 
-attach_pack_hook();
+start_cart_top_watcher();
 
 function attach_qty_update_hook() {
     const wait = setInterval(() => {
@@ -1338,7 +1451,7 @@ function attach_qty_update_hook() {
                         item.amount = flt(item.qty) * flt(item.rate);
                         item.net_amount = flt(item.qty) * flt(item.net_rate || item.rate);
                     });
-                    frm.refresh_field("items");
+                    keep_current_top_item_on_top();
                     frm.script_manager.trigger("calculate_taxes_and_totals");
                 }, 300);
             }
