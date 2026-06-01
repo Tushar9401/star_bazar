@@ -1215,11 +1215,106 @@ $(document).on('page-change', function () {
 });
 
 
-async function handle_pack_conversion() {
+let combo_scheme_cache = null;
+let combo_scheme_cache_at = 0;
+let pack_conversion_running = false;
 
-    if (!window.cur_pos || !window.cur_pos.frm) return;
+async function get_active_combo_schemes() {
+    const now = Date.now();
 
-    let frm = window.cur_pos.frm;
+    if (combo_scheme_cache && (now - combo_scheme_cache_at) < 60000) {
+        return combo_scheme_cache;
+    }
+
+    const response = await frappe.call({
+        method: "star_bazar.star_bazar.doctype.item_scheme.item_scheme.get_active_combo_schemes"
+    });
+
+    combo_scheme_cache = response.message || [];
+    combo_scheme_cache_at = now;
+
+    return combo_scheme_cache;
+}
+
+function get_combo_pack_count(items, scheme) {
+    let pack_count = null;
+
+    for (const required of scheme.items || []) {
+        const total_qty = (items || [])
+            .filter(row => row.item_code === required.item_code)
+            .reduce((total, row) => total + flt(row.qty), 0);
+
+        const item_pack_count = Math.floor(total_qty / flt(required.qty));
+
+        if (pack_count === null || item_pack_count < pack_count) {
+            pack_count = item_pack_count;
+        }
+    }
+
+    return pack_count || 0;
+}
+
+function consume_combo_items(frm, scheme, pack_count) {
+    for (const required of scheme.items || []) {
+        let qty_to_consume = flt(required.qty) * pack_count;
+
+        for (const row of [...(frm.doc.items || [])]) {
+            if (row.item_code !== required.item_code || qty_to_consume <= 0) continue;
+
+            const row_qty = flt(row.qty);
+            const consumed_qty = Math.min(row_qty, qty_to_consume);
+            const remaining_qty = row_qty - consumed_qty;
+
+            qty_to_consume -= consumed_qty;
+
+            if (remaining_qty > 0) {
+                row.qty = remaining_qty;
+            } else {
+                frappe.model.clear_doc(row.doctype, row.name);
+            }
+        }
+    }
+}
+
+async function add_combo_scheme_row(frm, scheme, pack_count) {
+    const new_row = frm.add_child("items");
+
+    new_row.item_code = scheme.scheme_name;
+    await Promise.resolve(frm.script_manager.trigger("item_code", new_row.doctype, new_row.name));
+
+    new_row.qty = pack_count;
+    await Promise.resolve(frm.script_manager.trigger("qty", new_row.doctype, new_row.name));
+}
+
+async function handle_combo_scheme_conversion() {
+    if (!window.cur_pos || !window.cur_pos.frm) return false;
+
+    const frm = window.cur_pos.frm;
+    const schemes = await get_active_combo_schemes();
+    let converted = false;
+
+    for (const scheme of schemes) {
+        let pack_count = get_combo_pack_count(frm.doc.items || [], scheme);
+
+        while (pack_count > 0) {
+            consume_combo_items(frm, scheme, pack_count);
+            await add_combo_scheme_row(frm, scheme, pack_count);
+            converted = true;
+
+            pack_count = get_combo_pack_count(frm.doc.items || [], scheme);
+        }
+    }
+
+    if (converted) {
+        frm.refresh_field("items");
+        frm.script_manager.trigger("calculate_taxes_and_totals");
+    }
+
+    return converted;
+}
+
+async function handle_single_item_pack_conversion(frm) {
+
     let items = frm.doc.items || [];
 
     for (let row of [...items]) {
@@ -1267,6 +1362,22 @@ async function handle_pack_conversion() {
 
         frm.refresh_field("items");
         frm.script_manager.trigger("calculate_taxes_and_totals");
+    }
+}
+
+async function handle_pack_conversion() {
+
+    if (!window.cur_pos || !window.cur_pos.frm || pack_conversion_running) return;
+
+    pack_conversion_running = true;
+
+    try {
+        let frm = window.cur_pos.frm;
+
+        await handle_combo_scheme_conversion();
+        await handle_single_item_pack_conversion(frm);
+    } finally {
+        pack_conversion_running = false;
     }
 }
 
@@ -2432,5 +2543,4 @@ $(document).on("page-change", function () {
 //         attachCartOrderFix();
 //     }, 1500);
 // });
-
 

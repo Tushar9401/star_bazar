@@ -1,11 +1,13 @@
 import frappe
 from frappe.model.document import Document
-from frappe.utils import flt
+from frappe.utils import flt, nowdate
 
 class ItemScheme(Document):
 
     def validate(self):
+        self.validate_items()
         self.validate_single_scheme()
+        self.validate_active_scheme_conflicts()
         self.validate_purchase_rate()
 
     def after_insert(self):
@@ -19,6 +21,9 @@ class ItemScheme(Document):
             self.revert_scheme()
 
     def validate_single_scheme(self):
+
+        if self.is_combo_scheme():
+            return
 
         if not self.item:
             return
@@ -37,30 +42,144 @@ class ItemScheme(Document):
                 f"Only one scheme can be applied at a time."
             )
 
-    def validate_purchase_rate(self):
+    def validate_items(self):
 
-        if not self.active or not self.item:
+        if self.is_combo_scheme():
+            combo_items = self.get_combo_items()
+
+            if len(combo_items) < 2:
+                frappe.throw("Please add at least two Combo Items for a combo scheme.")
+
+            seen_items = set()
+
+            for row in combo_items:
+                if row.item in seen_items:
+                    frappe.throw(f"Duplicate combo item found: <b>{row.item}</b>.")
+
+                seen_items.add(row.item)
+
             return
 
-        purchase_rate = flt(frappe.db.get_value(
-            "Item",
-            self.item,
-            "custom_item_purchase_rate"
-        ))
+        if not self.item:
+            frappe.throw("Please select an Item for a single item scheme.")
 
-        if purchase_rate <= 0:
-            frappe.throw(
-                f"Item Purchase Rate is missing or zero for Item: <b>{self.item}</b>. "
-                "Please set the Item Purchase Rate in Item Master before creating an active scheme."
-            )
+        if flt(self.qty) <= 0:
+            frappe.throw("Qty must be greater than zero.")
+
+    def validate_active_scheme_conflicts(self):
+        if not self.active:
+            return
+
+        for item in self.get_scheme_items():
+            conflict = self.get_active_scheme_conflict(item["item_code"])
+
+            if conflict:
+                frappe.throw(
+                    f"Item <b>{item['item_code']}</b> already has active scheme "
+                    f"<b>{conflict}</b>. <br><br>"
+                    "Only one active scheme can be applied to an item at a time."
+                )
+
+    def get_active_scheme_conflict(self, item_code):
+        single_scheme = frappe.db.get_value(
+            "Item Scheme",
+            {
+                "active": 1,
+                "item": item_code,
+                "name": ["!=", self.name],
+            },
+            "scheme_name",
+        )
+
+        if single_scheme:
+            return single_scheme
+
+        combo_scheme = frappe.db.sql(
+            """
+            SELECT scheme.scheme_name
+            FROM `tabItem Scheme Item` scheme_item
+            INNER JOIN `tabItem Scheme` scheme
+                ON scheme.name = scheme_item.parent
+            WHERE
+                scheme.active = 1
+                AND scheme.name != %(current_scheme)s
+                AND scheme_item.item = %(item_code)s
+            LIMIT 1
+            """,
+            {
+                "current_scheme": self.name,
+                "item_code": item_code,
+            },
+            as_dict=True,
+        )
+
+        if combo_scheme:
+            return combo_scheme[0].scheme_name
+
+        return None
+
+    def is_combo_scheme(self):
+        scheme_type = self.get("scheme_type")
+
+        if scheme_type:
+            return scheme_type == "Combo Item"
+
+        return len(self.get_combo_items()) > 0
+
+    def validate_purchase_rate(self):
+
+        if not self.active:
+            return
+
+        for item in self.get_scheme_items():
+            purchase_rate = flt(frappe.db.get_value(
+                "Item",
+                item["item_code"],
+                "custom_item_purchase_rate"
+            ))
+
+            if purchase_rate <= 0:
+                frappe.throw(
+                    f"Item Purchase Rate is missing or zero for Item: <b>{item['item_code']}</b>. "
+                    "Please set the Item Purchase Rate in Item Master before creating an active scheme."
+                )
+
+    def get_combo_items(self):
+        return [
+            row for row in (self.get("combo_items") or [])
+            if row.item and flt(row.qty) > 0
+        ]
+
+    def get_scheme_items(self):
+        if self.is_combo_scheme():
+            return [
+                {
+                    "item_code": row.item,
+                    "qty": flt(row.qty),
+                }
+                for row in self.get_combo_items()
+            ]
+
+        return [{
+            "item_code": self.item,
+            "qty": flt(self.qty),
+        }]
+
+    def get_purchase_rate(self):
+        purchase_rate = 0
+
+        for item in self.get_scheme_items():
+            purchase_rate += flt(frappe.db.get_value(
+                "Item",
+                item["item_code"],
+                "custom_item_purchase_rate"
+            )) * flt(item["qty"])
+
+        return purchase_rate
 
     def apply_scheme(self):
 
-        purchase_rate = flt(frappe.db.get_value(
-            "Item",
-            self.item,
-            "custom_item_purchase_rate"
-        )) * flt(self.qty)
+        purchase_rate = self.get_purchase_rate()
 
         if not frappe.db.exists("Item", self.scheme_name):
             item_doc = frappe.get_doc({
@@ -86,9 +205,9 @@ class ItemScheme(Document):
                 }
             )
 
-        if self.item:
-            self.apply_product_bundle()
+        self.apply_product_bundle()
 
+        if self.item and not self.is_combo_scheme():
             frappe.db.set_value(
                 "Item",
                 self.item,
@@ -97,6 +216,8 @@ class ItemScheme(Document):
                     "custom_bundle_qty": self.qty
                 }
             )
+        else:
+            self.clear_linked_items()
 
     def apply_product_bundle(self):
 
@@ -106,10 +227,7 @@ class ItemScheme(Document):
             "name"
         )
 
-        bundle_items = [{
-            "item_code": self.item,
-            "qty": self.qty
-        }]
+        bundle_items = self.get_scheme_items()
 
         if bundle_name:
             bundle_doc = frappe.get_doc("Product Bundle", bundle_name)
@@ -141,15 +259,7 @@ class ItemScheme(Document):
                 1
             )
 
-        if self.item:
-            frappe.db.set_value(
-                "Item",
-                self.item,
-                {
-                    "custom_bundle_item_code": None,
-                    "custom_bundle_qty": 0
-                }
-            )
+        self.clear_linked_items()
 
         if frappe.db.exists("Item", self.scheme_name):
             frappe.db.set_value(
@@ -158,3 +268,65 @@ class ItemScheme(Document):
                 "disabled",
                 1
             )
+
+    def clear_linked_items(self):
+        linked_items = frappe.get_all(
+            "Item",
+            filters={"custom_bundle_item_code": self.scheme_name},
+            pluck="name"
+        )
+
+        for item_code in linked_items:
+            frappe.db.set_value(
+                "Item",
+                item_code,
+                {
+                    "custom_bundle_item_code": None,
+                    "custom_bundle_qty": 0
+                }
+            )
+
+
+@frappe.whitelist()
+def get_active_combo_schemes():
+    schemes = frappe.get_all(
+        "Item Scheme",
+        filters={
+            "active": 1,
+            "from_date": ["<=", nowdate()],
+            "to_date": [">=", nowdate()],
+        },
+        fields=["name", "scheme_name", "scheme_type", "selling_price"],
+    )
+
+    combo_schemes = []
+
+    for scheme in schemes:
+        if scheme.scheme_type == "Single Item":
+            continue
+
+        items = frappe.get_all(
+            "Item Scheme Item",
+            filters={"parent": scheme.name, "parenttype": "Item Scheme"},
+            fields=["item", "qty"],
+            order_by="idx asc",
+        )
+        items = [
+            {
+                "item_code": row.item,
+                "qty": flt(row.qty),
+            }
+            for row in items
+            if row.item and flt(row.qty) > 0
+        ]
+
+        if len(items) < 2:
+            continue
+
+        combo_schemes.append({
+            "scheme_name": scheme.scheme_name,
+            "selling_price": flt(scheme.selling_price),
+            "items": items,
+        })
+
+    return combo_schemes
