@@ -2,6 +2,28 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import flt, nowdate
 
+ITEM_TAX_SETTINGS = {
+    "Food": {
+        "template": "Food Tax - SB",
+        "custom_food_stamp_enable": 1,
+        "custom_non_food": 0,
+        "custom_tobaco": 0,
+    },
+    "Non Food": {
+        "template": "Non Food Tax - SB",
+        "custom_food_stamp_enable": 0,
+        "custom_non_food": 1,
+        "custom_tobaco": 0,
+    },
+    "Tobacco": {
+        "template": "Tobacco Tax - SB",
+        "custom_food_stamp_enable": 0,
+        "custom_non_food": 0,
+        "custom_tobaco": 1,
+    },
+}
+
+
 class ItemScheme(Document):
 
     def validate(self):
@@ -49,6 +71,9 @@ class ItemScheme(Document):
 
             if len(combo_items) < 2:
                 frappe.throw("Please add at least two Combo Items for a combo scheme.")
+
+            if flt(self.qty) <= 0:
+                frappe.throw("Qty must be greater than zero.")
 
             seen_items = set()
 
@@ -147,7 +172,7 @@ class ItemScheme(Document):
     def get_combo_items(self):
         return [
             row for row in (self.get("combo_items") or [])
-            if row.item and flt(row.qty) > 0
+            if row.item
         ]
 
     def get_scheme_items(self):
@@ -155,7 +180,7 @@ class ItemScheme(Document):
             return [
                 {
                     "item_code": row.item,
-                    "qty": flt(row.qty),
+                    "qty": 1,
                 }
                 for row in self.get_combo_items()
             ]
@@ -166,6 +191,18 @@ class ItemScheme(Document):
         }]
 
     def get_purchase_rate(self):
+        if self.is_combo_scheme():
+            purchase_rates = [
+                flt(frappe.db.get_value(
+                    "Item",
+                    row.item,
+                    "custom_item_purchase_rate"
+                ))
+                for row in self.get_combo_items()
+            ]
+
+            return (max(purchase_rates) if purchase_rates else 0) * flt(self.qty)
+
         purchase_rate = 0
 
         for item in self.get_scheme_items():
@@ -194,20 +231,20 @@ class ItemScheme(Document):
 
             item_doc.insert(ignore_permissions=True)
         else:
-            frappe.db.set_value(
-                "Item",
-                self.scheme_name,
-                {
-                    "disabled": 0,
-                    "standard_rate": self.selling_price,
-                    "custom_item_purchase_rate": purchase_rate,
-                    "item_group": "Scheme"
-                }
-            )
+            item_doc = frappe.get_doc("Item", self.scheme_name)
+            item_doc.disabled = 0
+            item_doc.standard_rate = self.selling_price
+            item_doc.custom_item_purchase_rate = purchase_rate
+            item_doc.item_group = "Scheme"
 
-        self.apply_product_bundle()
+        self.apply_item_tax(item_doc)
+        item_doc.save(ignore_permissions=True)
 
-        if self.item and not self.is_combo_scheme():
+        if self.is_combo_scheme():
+            self.disable_product_bundle()
+            self.clear_linked_items()
+        else:
+            self.apply_product_bundle()
             frappe.db.set_value(
                 "Item",
                 self.item,
@@ -216,8 +253,6 @@ class ItemScheme(Document):
                     "custom_bundle_qty": self.qty
                 }
             )
-        else:
-            self.clear_linked_items()
 
     def apply_product_bundle(self):
 
@@ -242,6 +277,36 @@ class ItemScheme(Document):
             })
 
             bundle_doc.insert(ignore_permissions=True)
+
+    def apply_item_tax(self, item_doc):
+        tax_type = self.tax_type or "Non Food"
+        tax_settings = ITEM_TAX_SETTINGS.get(tax_type)
+
+        if not tax_settings:
+            frappe.throw(f"Invalid Tax Type selected: <b>{tax_type}</b>.")
+
+        for fieldname in ("custom_food_stamp_enable", "custom_non_food", "custom_tobaco"):
+            item_doc.set(fieldname, tax_settings[fieldname])
+
+        item_doc.set("taxes", [])
+        item_doc.append("taxes", {
+            "item_tax_template": tax_settings["template"],
+        })
+
+    def disable_product_bundle(self):
+        bundle_name = frappe.db.get_value(
+            "Product Bundle",
+            {"new_item_code": self.scheme_name},
+            "name"
+        )
+
+        if bundle_name:
+            frappe.db.set_value(
+                "Product Bundle",
+                bundle_name,
+                "disabled",
+                1
+            )
 
     def revert_scheme(self):
 
@@ -296,7 +361,7 @@ def get_active_combo_schemes():
             "from_date": ["<=", nowdate()],
             "to_date": [">=", nowdate()],
         },
-        fields=["name", "scheme_name", "scheme_type", "selling_price"],
+        fields=["name", "scheme_name", "scheme_type", "qty", "selling_price"],
     )
 
     combo_schemes = []
@@ -308,24 +373,24 @@ def get_active_combo_schemes():
         items = frappe.get_all(
             "Item Scheme Item",
             filters={"parent": scheme.name, "parenttype": "Item Scheme"},
-            fields=["item", "qty"],
+            fields=["item"],
             order_by="idx asc",
         )
         items = [
             {
                 "item_code": row.item,
-                "qty": flt(row.qty),
             }
             for row in items
-            if row.item and flt(row.qty) > 0
+            if row.item
         ]
 
-        if len(items) < 2:
+        if len(items) < 2 or flt(scheme.qty) <= 0:
             continue
 
         combo_schemes.append({
             "scheme_name": scheme.scheme_name,
             "selling_price": flt(scheme.selling_price),
+            "required_qty": flt(scheme.qty),
             "items": items,
         })
 

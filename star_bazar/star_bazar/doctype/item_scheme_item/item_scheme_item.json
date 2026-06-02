@@ -6,8 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "barcode",
-  "item",
-  "qty"
+  "item"
  ],
  "fields": [
   {
@@ -22,13 +21,6 @@
    "in_list_view": 1,
    "label": "Item",
    "options": "Item",
-   "reqd": 1
-  },
-  {
-   "fieldname": "qty",
-   "fieldtype": "Float",
-   "in_list_view": 1,
-   "label": "Qty",
    "reqd": 1
   }
  ],

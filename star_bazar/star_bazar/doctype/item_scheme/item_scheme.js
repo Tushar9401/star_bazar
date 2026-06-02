@@ -65,12 +65,12 @@ function apply_scheme_type_layout(frm) {
     const is_single_item = frm.doc.scheme_type === "Single Item";
     const is_combo_item = frm.doc.scheme_type === "Combo Item";
 
-    frm.toggle_display(["section_break_iqwg", "barcode", "item", "column_break_pptl", "qty"], is_single_item);
+    frm.toggle_display(["section_break_iqwg", "barcode", "item", "column_break_pptl"], is_single_item);
     frm.toggle_display(["combo_section", "combo_items"], is_combo_item);
 
     frm.toggle_reqd("item", is_single_item);
-    frm.toggle_reqd("qty", is_single_item);
     frm.toggle_reqd("combo_items", is_combo_item);
+    frm.set_df_property("qty", "label", is_combo_item ? "Required Qty" : "Qty");
 }
 
 frappe.ui.form.on("Item Scheme Item", {

@@ -1237,41 +1237,35 @@ async function get_active_combo_schemes() {
 }
 
 function get_combo_pack_count(items, scheme) {
-    let pack_count = null;
+    const eligible_items = new Set((scheme.items || []).map(row => row.item_code));
+    const required_qty = flt(scheme.required_qty);
 
-    for (const required of scheme.items || []) {
-        const total_qty = (items || [])
-            .filter(row => row.item_code === required.item_code)
-            .reduce((total, row) => total + flt(row.qty), 0);
+    if (!eligible_items.size || required_qty <= 0) return 0;
 
-        const item_pack_count = Math.floor(total_qty / flt(required.qty));
+    const total_qty = (items || [])
+        .filter(row => eligible_items.has(row.item_code) && !row.__combo_component)
+        .reduce((total, row) => total + flt(row.qty), 0);
 
-        if (pack_count === null || item_pack_count < pack_count) {
-            pack_count = item_pack_count;
-        }
-    }
-
-    return pack_count || 0;
+    return Math.floor(total_qty / required_qty);
 }
 
 function consume_combo_items(frm, scheme, pack_count) {
-    for (const required of scheme.items || []) {
-        let qty_to_consume = flt(required.qty) * pack_count;
+    const eligible_items = new Set((scheme.items || []).map(row => row.item_code));
+    let qty_to_consume = flt(scheme.required_qty) * pack_count;
 
-        for (const row of [...(frm.doc.items || [])]) {
-            if (row.item_code !== required.item_code || qty_to_consume <= 0) continue;
+    for (const row of [...(frm.doc.items || [])]) {
+        if (!eligible_items.has(row.item_code) || row.__combo_component || qty_to_consume <= 0) continue;
 
-            const row_qty = flt(row.qty);
-            const consumed_qty = Math.min(row_qty, qty_to_consume);
-            const remaining_qty = row_qty - consumed_qty;
+        const row_qty = flt(row.qty);
+        const consumed_qty = Math.min(row_qty, qty_to_consume);
+        const remaining_qty = row_qty - consumed_qty;
 
-            qty_to_consume -= consumed_qty;
+        qty_to_consume -= consumed_qty;
 
-            if (remaining_qty > 0) {
-                row.qty = remaining_qty;
-            } else {
-                frappe.model.clear_doc(row.doctype, row.name);
-            }
+        if (remaining_qty > 0) {
+            row.qty = remaining_qty;
+        } else {
+            frappe.model.clear_doc(row.doctype, row.name);
         }
     }
 }
@@ -1283,7 +1277,18 @@ async function add_combo_scheme_row(frm, scheme, pack_count) {
     await Promise.resolve(frm.script_manager.trigger("item_code", new_row.doctype, new_row.name));
 
     new_row.qty = pack_count;
+    new_row.rate = flt(scheme.selling_price);
+    new_row.net_rate = flt(scheme.selling_price);
+    new_row.price_list_rate = flt(scheme.selling_price);
+    new_row.amount = flt(scheme.selling_price) * pack_count;
+    new_row.net_amount = flt(scheme.selling_price) * pack_count;
     await Promise.resolve(frm.script_manager.trigger("qty", new_row.doctype, new_row.name));
+
+    new_row.rate = flt(scheme.selling_price);
+    new_row.net_rate = flt(scheme.selling_price);
+    new_row.price_list_rate = flt(scheme.selling_price);
+    new_row.amount = flt(scheme.selling_price) * pack_count;
+    new_row.net_amount = flt(scheme.selling_price) * pack_count;
 }
 
 async function handle_combo_scheme_conversion() {
@@ -2543,4 +2548,3 @@ $(document).on("page-change", function () {
 //         attachCartOrderFix();
 //     }, 1500);
 // });
-
