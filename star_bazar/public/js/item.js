@@ -1,5 +1,14 @@
 
 frappe.ui.form.on('Item', {
+    refresh: function(frm) {
+        calculate_margin(frm);
+    },
+    standard_rate: function(frm) {
+        calculate_margin(frm);
+    },
+    custom_item_purchase_rate: function(frm) {
+        calculate_margin(frm);
+    },
     custom_tobaco: function(frm) {
         if (frm.doc.custom_tobaco) {
             frm.clear_table("taxes");
@@ -39,3 +48,13 @@ frappe.ui.form.on('Item', {
         }
     }
 });
+
+function calculate_margin(frm) {
+    const selling = flt(frm.doc.standard_rate);
+    const purchase = flt(frm.doc.custom_item_purchase_rate);
+    const margin = selling > 0 && purchase > 0
+        ? ((selling - purchase) / selling) * 100
+        : 0;
+
+    frm.set_value('custom_margin', flt(margin, 2));
+}

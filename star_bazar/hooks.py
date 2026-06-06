@@ -171,6 +171,7 @@ doctype_js = {
 # }
 doc_events = {
     "Item": {
+        "before_validate": "star_bazar.item.update_item_margin",
         "on_update": "star_bazar.item.update_item_price_from_standard_rate"
     },
     "Hold Invoice": {
