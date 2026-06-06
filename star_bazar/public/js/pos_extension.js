@@ -717,7 +717,7 @@ function attach_realtime_cart_broadcast(pos) {
                     new_row.qty = 1;
                     new_row.uom = item.uom;
                     new_row.description = item.description;
-                    new_row.income_account = "Sales - SBD";
+                    new_row.income_account = "Sales - SB";
                     new_row.rate = item.rate || 0;
                     new_row.amount = item.rate || 0;
                 }
