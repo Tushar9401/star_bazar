@@ -179,34 +179,47 @@ body[data-route="point-of-sale"] #page-point-of-sale .pos-checkout-btn:hover {
    Make cart bigger and items smaller
    ========================= */
 
+/* Main POS layout uses GRID, so override grid columns */
 body[data-route="point-of-sale"] #page-point-of-sale .point-of-sale-app {
-  display: flex !important;
-  gap: 16px !important;
+  display: grid !important;
+  grid-template-columns: 38% 62% !important;
+  column-gap: 16px !important;
   align-items: stretch !important;
 }
 
+/* Hide empty item details section */
+body[data-route="point-of-sale"] #page-point-of-sale .item-details-container:empty {
+  display: none !important;
+}
+
+/* All Items section */
 body[data-route="point-of-sale"] #page-point-of-sale .items-selector {
-  flex: 0 0 50%!important;
-  max-width: 50%!important;
-  width: 50% !important;
+  width: 100% !important;
+  max-width: 100% !important;
   min-width: 0 !important;
+  grid-column: 1 !important;
 }
 
+/* Customer + Cart section */
 body[data-route="point-of-sale"] #page-point-of-sale .customer-cart-container {
-  flex: 0 0 50% !important;
-  max-width: 50% !important;
-  width: 50% !important;
+  width: 100% !important;
+  max-width: 100% !important;
   min-width: 0 !important;
+  grid-column: 2 !important;
 }
 
-body[data-route="point-of-sale"] #page-point-of-sale .customer-cart-container .cart-container {
+/* Make cart full width inside right side */
+body[data-route="point-of-sale"] #page-point-of-sale .customer-cart-container .customer-section,
+body[data-route="point-of-sale"] #page-point-of-sale .customer-cart-container .cart-container,
+body[data-route="point-of-sale"] #page-point-of-sale .customer-cart-container .abs-cart-container {
   width: 100% !important;
   max-width: 100% !important;
 }
 
-body[data-route="point-of-sale"] #page-point-of-sale .customer-cart-container .customer-section,
-body[data-route="point-of-sale"] #page-point-of-sale .customer-cart-container .cart-container {
-  width: 100% !important;
+/* Make item cards smaller / fit better */
+body[data-route="point-of-sale"] #page-point-of-sale .items-selector .items-container,
+body[data-route="point-of-sale"] #page-point-of-sale .items-selector .items {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
 }
 /* =========================================
    ONLY WHEN ITEM DETAILS (3rd column) IS OPEN
@@ -231,8 +244,8 @@ body[data-route="point-of-sale"]
 #page-point-of-sale 
 .point-of-sale-app:has(.item-details-container[style*="display: block"]) .items-selector {
   
-  flex: 0 0 45% !important;
-  max-width: 45% !important;
+  flex: 0 0 35% !important;
+  max-width: 35% !important;
 }
 
 /* item details */
@@ -240,8 +253,8 @@ body[data-route="point-of-sale"]
 #page-point-of-sale 
 .item-details-container {
   
-  flex: 0 0 25% !important;
-  max-width: 25% !important;
+  flex: 0 0 35% !important;
+  max-width: 35% !important;
   min-width: 0 !important;
 }
 

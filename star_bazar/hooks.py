@@ -4,7 +4,7 @@ app_publisher = "Tushar Thakkar"
 app_description = "Star Bazar"
 app_email = "tusharthakkar1996@gmail.com"
 app_license = "mit"
-# app_include_css = "/assets/star_bazar/css/pos_custom_final.css"
+app_include_css = "/assets/star_bazar/css/pos_custom_final.css"
 
 
 scheduler_events = {
