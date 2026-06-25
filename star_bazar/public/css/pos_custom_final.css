@@ -296,6 +296,14 @@ body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-pay
   color: #ffffff !important;
 }
 
+body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-payment[data-mode="cash"] .cash-shortcuts .shortcut,
+#page-point-of-sale .payment-modes .mode-of-payment.star-pos-payment-cash .cash-shortcuts .shortcut {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.75) !important;
+  color: #374151 !important;
+}
+
 body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-payment[data-mode="cash"].border-primary,
 body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-payment[data-mode="credit_card"].border-primary,
 #page-point-of-sale .payment-modes .mode-of-payment.star-pos-payment-cash.border-primary,

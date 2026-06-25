@@ -106,6 +106,12 @@ function applyPaymentModeColors() {
         button.querySelectorAll(".pay-amount, .control-label, input").forEach((element) => {
             element.style.setProperty("color", "#ffffff", "important");
         });
+
+        button.querySelectorAll(".cash-shortcuts .shortcut").forEach((shortcut) => {
+            shortcut.style.setProperty("background-color", "#ffffff", "important");
+            shortcut.style.setProperty("color", "#374151", "important");
+            shortcut.style.setProperty("border", "1px solid rgba(255, 255, 255, 0.75)", "important");
+        });
     });
 }
 
