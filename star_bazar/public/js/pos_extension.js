@@ -75,6 +75,54 @@ frappe.require("/assets/star_bazar/js/qz-tray.js");
 // };
 console.log("POS extension loaded on point-of-sale page");
 
+function applyPaymentModeColors() {
+    const colorByMode = {
+        cash: {
+            className: "star-pos-payment-cash",
+            background: "#dc2626",
+            border: "#b91c1c"
+        },
+        credit_card: {
+            className: "star-pos-payment-credit-card",
+            background: "#16a34a",
+            border: "#15803d"
+        }
+    };
+
+    document.querySelectorAll(".mode-of-payment").forEach((button) => {
+        const mode = (button.dataset.mode || "").trim().toLowerCase();
+        const label = (button.childNodes[0]?.textContent || button.textContent || "").trim().toLowerCase();
+        const config = colorByMode[mode] || (label === "cash" ? colorByMode.cash : null) ||
+            (label === "credit card" ? colorByMode.credit_card : null);
+
+        if (!config) return;
+
+        button.classList.add(config.className);
+        button.style.setProperty("background", config.background, "important");
+        button.style.setProperty("background-color", config.background, "important");
+        button.style.setProperty("border-color", config.border, "important");
+        button.style.setProperty("color", "#ffffff", "important");
+
+        button.querySelectorAll(".pay-amount, .control-label, input").forEach((element) => {
+            element.style.setProperty("color", "#ffffff", "important");
+        });
+    });
+}
+
+(function watchPaymentModeColors() {
+    const apply = () => {
+        if (frappe.get_route?.()[0] === "point-of-sale") {
+            applyPaymentModeColors();
+        }
+    };
+
+    $(document).on("page-change", () => setTimeout(apply, 300));
+    setInterval(apply, 1000);
+
+    const observer = new MutationObserver(apply);
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
+
 window.addEventListener("message", function (event) {
     if (event.origin !== window.location.origin) return;
     if (event.data?.type === "customer_display_ready") {

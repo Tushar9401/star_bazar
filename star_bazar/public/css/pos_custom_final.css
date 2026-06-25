@@ -269,3 +269,36 @@ body[data-route="point-of-sale"]
   flex: 0 0 30% !important;
   max-width: 30% !important;
 }
+
+/* =========================
+   Payment method colors
+   ========================= */
+body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-payment[data-mode="cash"],
+#page-point-of-sale .payment-modes .mode-of-payment.star-pos-payment-cash {
+  background: #dc2626 !important;
+  background-color: #dc2626 !important;
+  border-color: #b91c1c !important;
+  color: #ffffff !important;
+}
+
+body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-payment[data-mode="credit_card"],
+#page-point-of-sale .payment-modes .mode-of-payment.star-pos-payment-credit-card {
+  background: #16a34a !important;
+  background-color: #16a34a !important;
+  border-color: #15803d !important;
+  color: #ffffff !important;
+}
+
+body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-payment[data-mode="cash"] .pay-amount,
+body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-payment[data-mode="credit_card"] .pay-amount,
+#page-point-of-sale .payment-modes .mode-of-payment.star-pos-payment-cash .pay-amount,
+#page-point-of-sale .payment-modes .mode-of-payment.star-pos-payment-credit-card .pay-amount {
+  color: #ffffff !important;
+}
+
+body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-payment[data-mode="cash"].border-primary,
+body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-payment[data-mode="credit_card"].border-primary,
+#page-point-of-sale .payment-modes .mode-of-payment.star-pos-payment-cash.border-primary,
+#page-point-of-sale .payment-modes .mode-of-payment.star-pos-payment-credit-card.border-primary {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85), 0 0 0 6px rgba(37, 99, 235, 0.35) !important;
+}
