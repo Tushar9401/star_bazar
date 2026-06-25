@@ -79,13 +79,13 @@ function applyPaymentModeColors() {
     const colorByMode = {
         cash: {
             className: "star-pos-payment-cash",
-            background: "#dc2626",
-            border: "#b91c1c"
+            background: "#16a34a",
+            border: "#15803d"
         },
         credit_card: {
             className: "star-pos-payment-credit-card",
-            background: "#16a34a",
-            border: "#15803d"
+            background: "#dc2626",
+            border: "#b91c1c"
         }
     };
 

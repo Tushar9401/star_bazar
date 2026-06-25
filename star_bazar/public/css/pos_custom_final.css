@@ -275,17 +275,17 @@ body[data-route="point-of-sale"]
    ========================= */
 body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-payment[data-mode="cash"],
 #page-point-of-sale .payment-modes .mode-of-payment.star-pos-payment-cash {
-  background: #dc2626 !important;
-  background-color: #dc2626 !important;
-  border-color: #b91c1c !important;
+  background: #16a34a !important;
+  background-color: #16a34a !important;
+  border-color: #15803d !important;
   color: #ffffff !important;
 }
 
 body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-payment[data-mode="credit_card"],
 #page-point-of-sale .payment-modes .mode-of-payment.star-pos-payment-credit-card {
-  background: #16a34a !important;
-  background-color: #16a34a !important;
-  border-color: #15803d !important;
+  background: #dc2626 !important;
+  background-color: #dc2626 !important;
+  border-color: #b91c1c !important;
   color: #ffffff !important;
 }
 
