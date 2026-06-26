@@ -103,8 +103,12 @@ function applyPaymentModeColors() {
         button.style.setProperty("border-color", config.border, "important");
         button.style.setProperty("color", "#ffffff", "important");
 
-        button.querySelectorAll(".pay-amount, .control-label, input").forEach((element) => {
+        button.querySelectorAll(".pay-amount, .control-label").forEach((element) => {
             element.style.setProperty("color", "#ffffff", "important");
+        });
+
+        button.querySelectorAll(".mode-of-payment-control input").forEach((input) => {
+            input.style.setProperty("color", "#111827", "important");
         });
 
         button.querySelectorAll(".cash-shortcuts .shortcut").forEach((shortcut) => {

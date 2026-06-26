@@ -296,6 +296,21 @@ body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-pay
   color: #ffffff !important;
 }
 
+body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-payment[data-mode="cash"] .mode-of-payment-control input,
+body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-payment[data-mode="credit_card"] .mode-of-payment-control input,
+#page-point-of-sale .payment-modes .mode-of-payment.star-pos-payment-cash .mode-of-payment-control input,
+#page-point-of-sale .payment-modes .mode-of-payment.star-pos-payment-credit-card .mode-of-payment-control input {
+  color: #111827 !important;
+}
+
+body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-payment[data-mode="cash"] .mode-of-payment-control input::placeholder,
+body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-payment[data-mode="credit_card"] .mode-of-payment-control input::placeholder,
+#page-point-of-sale .payment-modes .mode-of-payment.star-pos-payment-cash .mode-of-payment-control input::placeholder,
+#page-point-of-sale .payment-modes .mode-of-payment.star-pos-payment-credit-card .mode-of-payment-control input::placeholder {
+  color: #6b7280 !important;
+  opacity: 1;
+}
+
 body[data-route="point-of-sale"] #page-point-of-sale .payment-modes .mode-of-payment[data-mode="cash"] .cash-shortcuts .shortcut,
 #page-point-of-sale .payment-modes .mode-of-payment.star-pos-payment-cash .cash-shortcuts .shortcut {
   background: #ffffff !important;
