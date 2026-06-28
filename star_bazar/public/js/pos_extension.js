@@ -133,6 +133,68 @@ function applyPaymentModeColors() {
     observer.observe(document.body, { childList: true, subtree: true });
 })();
 
+function addCustomRemarksToPosItemDetails() {
+    const ItemDetails = window.erpnext?.PointOfSale?.ItemDetails;
+    if (!ItemDetails || ItemDetails.prototype.__star_bazar_custom_remarks_field_added) {
+        return false;
+    }
+
+    const originalRenderForm = ItemDetails.prototype.render_form;
+    const originalGetFormFields = ItemDetails.prototype.get_form_fields;
+
+    ItemDetails.prototype.render_form = function (item) {
+        if (
+            this.item_meta &&
+            !this.item_meta.fields.some((df) => df.fieldname === "custom_remarks")
+        ) {
+            this.item_meta.fields.push({
+                fieldname: "custom_remarks",
+                fieldtype: "Small Text",
+                label: __("Remarks"),
+            });
+        }
+
+        originalRenderForm.call(this, item);
+    };
+
+    ItemDetails.prototype.get_form_fields = function (item) {
+        const fields = originalGetFormFields.call(this, item);
+        if (!fields.includes("custom_remarks")) {
+            const priceListIndex = fields.indexOf("price_list_rate");
+            if (priceListIndex === -1) {
+                fields.push("custom_remarks");
+            } else {
+                fields.splice(priceListIndex + 1, 0, "custom_remarks");
+            }
+        }
+        return fields;
+    };
+
+    ItemDetails.prototype.__star_bazar_custom_remarks_field_added = true;
+    return true;
+}
+
+(function watchPosItemDetailsFields() {
+    const patch = () => {
+        if (frappe.get_route?.()[0] === "point-of-sale") {
+            addCustomRemarksToPosItemDetails();
+        }
+    };
+
+    $(document).on("page-change", () => setTimeout(patch, 300));
+
+    const timer = setInterval(() => {
+        addCustomRemarksToPosItemDetails();
+
+        if (window.erpnext?.PointOfSale?.ItemDetails?.prototype.__star_bazar_custom_remarks_field_added) {
+            clearInterval(timer);
+        }
+    }, 500);
+
+    const observer = new MutationObserver(patch);
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
+
 window.addEventListener("message", function (event) {
     if (event.origin !== window.location.origin) return;
     if (event.data?.type === "customer_display_ready") {
@@ -237,6 +299,96 @@ function isCashPayment() {
     }
 }
 
+function getPlainText(value) {
+    return $("<div>").html(value || "").text().trim();
+}
+
+function syncOpenItemRemarks(pos) {
+    const itemDetails = pos?.item_details;
+    const control = itemDetails?.custom_remarks_control;
+    const currentItem = itemDetails?.current_item;
+
+    if (!control || !currentItem?.name) return;
+
+    const value = control.get_value ? control.get_value() : control.value;
+    const row = pos.frm.doc.items?.find((item) => item.name === currentItem.name);
+
+    if (row) {
+        row.custom_remarks = value;
+    }
+}
+
+function isGroceryOrNonFoodItem(row) {
+    const itemCode = (row.item_code || "").toUpperCase();
+    const itemName = (row.item_name || "").toUpperCase();
+
+    return (
+        itemCode === "GROCERY" ||
+        itemName === "GROCERY" ||
+        itemCode.includes("NON FOOD") ||
+        itemName.includes("NON FOOD")
+    );
+}
+
+function validateItemRemarksForGroceryAndNonFood() {
+    const pos = window.cur_pos;
+    const frm = pos?.frm;
+    if (!frm?.doc?.items) return true;
+
+    syncOpenItemRemarks(pos);
+
+    const missingRemarkRows = frm.doc.items.filter((row) => {
+        return (
+            isGroceryOrNonFoodItem(row) &&
+            !getPlainText(row.custom_remarks)
+        );
+    });
+
+    if (!missingRemarkRows.length) return true;
+
+    const itemList = missingRemarkRows
+        .map((row) => frappe.utils.escape_html(row.item_name || row.item_code || __("Item")))
+        .join("<br>");
+
+    frappe.msgprint({
+        title: __("Remarks Required"),
+        indicator: "red",
+        message: __(
+            "Please enter Item Details Remarks for the following Grocery / Non Food item(s):<br><br>{0}",
+            [itemList]
+        ),
+    });
+
+    return false;
+}
+
+function validateNoZeroOrPennyRates() {
+    const pos = window.cur_pos;
+    const frm = pos?.frm;
+    if (!frm?.doc?.items) return true;
+
+    const invalidRows = frm.doc.items.filter((row) => {
+        return flt(row.rate, 2) === 0 || flt(row.rate, 2) === 0.01;
+    });
+
+    if (!invalidRows.length) return true;
+
+    const itemList = invalidRows
+        .map((row) => frappe.utils.escape_html(row.item_name || row.item_code || __("Item")))
+        .join("<br>");
+
+    frappe.msgprint({
+        title: __("Invalid Rate"),
+        indicator: "red",
+        message: __(
+            "Please update the rate for the following zero / $0.01 item(s) before checkout:<br><br>{0}",
+            [itemList]
+        ),
+    });
+
+    return false;
+}
+
 (function attachButtonListener() {
     const timer = setInterval(() => {
 
@@ -266,7 +418,19 @@ function isCashPayment() {
 
         btn.__drawer_hooked = true;
 
-        btn.addEventListener("click", async () => {
+        btn.addEventListener("click", async (e) => {
+            if (!validateNoZeroOrPennyRates()) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return false;
+            }
+
+            if (!validateItemRemarksForGroceryAndNonFood()) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return false;
+            }
+
             try {
                 broadcastCartClear();
                 if (isCashPayment()) {
@@ -278,7 +442,7 @@ function isCashPayment() {
             } catch (e) {
                 console.error("Drawer hook error:", e);
             }
-        });
+        }, true);
 
         console.log("Complete Order button hooked");
         clearInterval(timer);
@@ -775,6 +939,7 @@ function attach_realtime_cart_broadcast(pos) {
                     new_row.qty = 1;
                     new_row.uom = item.uom;
                     new_row.description = item.description;
+                    new_row.custom_remarks = item.custom_remarks;
                     new_row.income_account = "Sales - SB";
                     new_row.rate = item.rate || 0;
                     new_row.amount = item.rate || 0;
@@ -1410,6 +1575,7 @@ async function handle_single_item_pack_conversion(frm) {
             frm.script_manager.trigger("item_code", new_row.doctype, new_row.name);
 
             new_row.qty = 1;
+            new_row.custom_remarks = row.custom_remarks;
         }
 
         // Add remaining normal qty
@@ -1421,6 +1587,7 @@ async function handle_single_item_pack_conversion(frm) {
             frm.script_manager.trigger("item_code", new_row.doctype, new_row.name);
 
             new_row.qty = remaining;
+            new_row.custom_remarks = row.custom_remarks;
         }
 
         frm.refresh_field("items");

@@ -143,6 +143,25 @@ body[data-route="point-of-sale"] #page-point-of-sale .form-control:focus {
   box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.16) !important;
 }
 
+/* Item Details: custom remarks field added below Price List Rate */
+body[data-route="point-of-sale"] #page-point-of-sale .item-details-container .form-container .custom_remarks-control {
+  grid-column: 1 / -1 !important;
+}
+
+body[data-route="point-of-sale"] #page-point-of-sale .item-details-container .custom_remarks-control .ql-toolbar,
+body[data-route="point-of-sale"] #page-point-of-sale .item-details-container .custom_remarks-control .ql-container,
+body[data-route="point-of-sale"] #page-point-of-sale .item-details-container .custom_remarks-control textarea,
+body[data-route="point-of-sale"] #page-point-of-sale .item-details-container .custom_remarks-control .form-control {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+body[data-route="point-of-sale"] #page-point-of-sale .item-details-container .custom_remarks-control .ql-editor,
+body[data-route="point-of-sale"] #page-point-of-sale .item-details-container .custom_remarks-control textarea {
+  min-height: 76px !important;
+  color: #111827 !important;
+}
+
 /* =========================
    Badge / stock pill
    ========================= */
