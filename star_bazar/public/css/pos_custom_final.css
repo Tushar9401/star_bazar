@@ -162,6 +162,17 @@ body[data-route="point-of-sale"] #page-point-of-sale .item-details-container .cu
   color: #111827 !important;
 }
 
+body[data-route="point-of-sale"] #page-point-of-sale .cart-item-wrapper .star-pos-item-remarks {
+  color: #7c3aed !important;
+  font-size: 0.82rem !important;
+  line-height: 1.2 !important;
+  margin-top: 2px !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
 /* =========================
    Badge / stock pill
    ========================= */

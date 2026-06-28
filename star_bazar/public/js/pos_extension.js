@@ -389,6 +389,52 @@ function validateNoZeroOrPennyRates() {
     return false;
 }
 
+function updateCartItemRemarks() {
+    const pos = window.cur_pos;
+    const frm = pos?.frm;
+    if (!frm?.doc?.items || frappe.get_route?.()[0] !== "point-of-sale") return;
+
+    syncOpenItemRemarks(pos);
+
+    document.querySelectorAll("#page-point-of-sale .cart-item-wrapper[data-row-name]").forEach((cartRow) => {
+        const rowName = cartRow.getAttribute("data-row-name");
+        const item = frm.doc.items.find((row) => row.name === rowName);
+        const remarks = getPlainText(item?.custom_remarks);
+        let remarksEl = cartRow.querySelector(".star-pos-item-remarks");
+
+        if (!remarks) {
+            remarksEl?.remove();
+            return;
+        }
+
+        if (!remarksEl) {
+            remarksEl = document.createElement("div");
+            remarksEl.className = "star-pos-item-remarks";
+
+            const itemNameDesc = cartRow.querySelector(".item-name-desc");
+            const itemDesc = cartRow.querySelector(".item-desc");
+            if (itemDesc) {
+                itemDesc.after(remarksEl);
+            } else {
+                itemNameDesc?.appendChild(remarksEl);
+            }
+        }
+
+        remarksEl.textContent = `${__("Remarks")}: ${frappe.ellipsis(remarks, 60)}`;
+    });
+}
+
+(function watchCartItemRemarks() {
+    const update = () => setTimeout(updateCartItemRemarks, 100);
+
+    $(document).on("page-change", update);
+    $(document).on("change keyup", ".item-details-container [data-fieldname='custom_remarks']", update);
+    setInterval(updateCartItemRemarks, 1000);
+
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
+
 (function attachButtonListener() {
     const timer = setInterval(() => {
 
