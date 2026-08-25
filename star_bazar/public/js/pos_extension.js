@@ -1587,58 +1587,117 @@ async function handle_combo_scheme_conversion() {
     return converted;
 }
 
+const bundleItemConfigCache = new Map();
+
+async function getBundleItemConfig(item_code) {
+    if (!item_code) return null;
+
+    if (bundleItemConfigCache.has(item_code)) {
+        return bundleItemConfigCache.get(item_code);
+    }
+
+    const configPromise = frappe.db.get_value(
+        "Item",
+        item_code,
+        ["custom_bundle_item_code", "custom_bundle_qty"]
+    ).then((response) => {
+        const data = response?.message || {};
+
+        return {
+            custom_bundle_item_code: data.custom_bundle_item_code || null,
+            custom_bundle_qty: flt(data.custom_bundle_qty || 0)
+        };
+    }).catch((error) => {
+        console.error("Failed to fetch bundle configuration:", item_code, error);
+
+        return {
+            custom_bundle_item_code: null,
+            custom_bundle_qty: 0
+        };
+    });
+
+    bundleItemConfigCache.set(item_code, configPromise);
+    return configPromise;
+}
+
 async function handle_single_item_pack_conversion(frm) {
+    const items = [...(frm.doc.items || [])];
 
-    let items = frm.doc.items || [];
+    if (!items.length) return false;
 
-    for (let row of [...items]) {
+    const configs = await Promise.all(
+        items.map(row => (
+            row.item_code
+                ? getBundleItemConfig(row.item_code)
+                : Promise.resolve(null)
+        ))
+    );
 
-        if (!row.item_code) continue;
+    let converted = false;
 
-        let item = await frappe.db.get_doc("Item", row.item_code);
+    for (let index = 0; index < items.length; index++) {
+        const row = items[index];
+        const item = configs[index];
 
-        if (!item.custom_bundle_item_code || !item.custom_bundle_qty) continue;
+        if (!row?.item_code || !item) continue;
 
-        let bundle_qty = item.custom_bundle_qty;
-        let total_qty = row.qty;
+        const bundle_qty = flt(item.custom_bundle_qty);
+        const bundle_item_code = item.custom_bundle_item_code;
+
+        if (!bundle_item_code || bundle_qty <= 0) continue;
+
+        const total_qty = flt(row.qty);
 
         if (total_qty < bundle_qty) continue;
 
-        let pack_count = Math.floor(total_qty / bundle_qty);
-        let remaining = total_qty % bundle_qty;
+        const pack_count = Math.floor(total_qty / bundle_qty);
+        const remaining = total_qty % bundle_qty;
+        const original_item_code = row.item_code;
+        const original_remarks = row.custom_remarks;
 
-        // Remove original row
         frappe.model.clear_doc(row.doctype, row.name);
 
-        frm.refresh_field("items");
-
-        // Add bundle packs
         for (let i = 0; i < pack_count; i++) {
+            const new_row = frm.add_child("items");
 
-            let new_row = frm.add_child("items");
+            new_row.item_code = bundle_item_code;
+            new_row.qty = 1;
+            new_row.custom_remarks = original_remarks;
 
-            new_row.item_code = item.custom_bundle_item_code;
-            frm.script_manager.trigger("item_code", new_row.doctype, new_row.name);
+            await Promise.resolve(
+                frm.script_manager.trigger("item_code", new_row.doctype, new_row.name)
+            );
 
             new_row.qty = 1;
-            new_row.custom_remarks = row.custom_remarks;
+            new_row.custom_remarks = original_remarks;
         }
 
-        // Add remaining normal qty
         if (remaining > 0) {
+            const new_row = frm.add_child("items");
 
-            let new_row = frm.add_child("items");
+            new_row.item_code = original_item_code;
+            new_row.qty = remaining;
+            new_row.custom_remarks = original_remarks;
 
-            new_row.item_code = row.item_code;
-            frm.script_manager.trigger("item_code", new_row.doctype, new_row.name);
+            await Promise.resolve(
+                frm.script_manager.trigger("item_code", new_row.doctype, new_row.name)
+            );
 
             new_row.qty = remaining;
-            new_row.custom_remarks = row.custom_remarks;
+            new_row.custom_remarks = original_remarks;
         }
 
-        frm.refresh_field("items");
-        frm.script_manager.trigger("calculate_taxes_and_totals");
+        converted = true;
     }
+
+    if (converted) {
+        frm.refresh_field("items");
+        await Promise.resolve(
+            frm.script_manager.trigger("calculate_taxes_and_totals")
+        );
+    }
+
+    return converted;
 }
 
 async function handle_pack_conversion() {
